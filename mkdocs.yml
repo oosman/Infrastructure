@@ -1,0 +1,85 @@
+site_name: "Infrastructure Knowledge Base"
+site_url: "https://oosman.github.io/Infrastructure/"
+repo_url: "https://github.com/oosman/Infrastructure"
+edit_uri: "edit/main/docs/"
+
+theme:
+  name: material
+  font:
+    text: Inter
+    code: JetBrains Mono
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: teal
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.top
+    - navigation.indexes
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.action.edit
+    - toc.follow
+
+plugins:
+  - search
+  - tags:
+      tags_file: tags.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tabbed:
+      alternate_style: true
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Architecture: architecture.md
+  - Setup: setup.md
+  - Services:
+      - Mac MCP: local-mcp.md
+      - Vault MCP: vault-mcp.md
+      - Cloudflare: cloudflare.md
+  - Operations:
+      - Task Routing: task-routing.md
+      - Git Conventions: git-conventions.md
+      - Known Risks: risks.md
+  - Decisions:
+      - decisions/0001-foundational-constraints.md
+      - decisions/0002-cloudflare-tunnel.md
+      - decisions/0003-lightsail-dual-stack.md
+      - decisions/0004-mac-mcp-architecture.md
+      - decisions/0005-model-discipline.md
+      - decisions/0006-three-layer-auth.md
+      - decisions/0007-tool-consolidation.md
+      - decisions/0008-streamable-http.md
+      - decisions/0009-portal-spike.md
+      - decisions/0010-ai-gateway-deferred.md
+  - Tags: tags.md

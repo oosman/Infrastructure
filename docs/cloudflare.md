@@ -22,7 +22,7 @@ deltaops.dev — managed via Cloudflare DNS.
 
 ## Workers
 
-- vault-mcp: Pipeline state, tasks, GitHub integration. Free tier.
+- vault-mcp: Workflow state, tasks, GitHub integration. Free tier.
 
 ## Tunnels
 
@@ -31,6 +31,6 @@ deltaops.dev — managed via Cloudflare DNS.
 
 ## Resources
 
-- D1 database: pipeline state tables
+- D1 database (vault-db): workflow state tables
 - Workers KV: human task storage (TASKS_KV namespace)
 - Durable Objects: McpAgent backing store

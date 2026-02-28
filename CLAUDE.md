@@ -83,3 +83,8 @@ launchctl list | grep com.osman                 # All services
 ## Docs
 
 See docs/ for architecture details, setup guide, and ADRs (0001-0010).
+
+## Sudo Access
+
+Full passwordless sudo is configured for user osman via /etc/sudoers.d/claude-full.
+Use `sudo` freely — no password prompt will appear.

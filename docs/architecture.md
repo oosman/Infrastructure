@@ -8,11 +8,9 @@ tags: [architecture, overview]
 
 # Architecture (v2)
 
-## Three-Instance Model
+## Overview
 
-- **Infrastructure** (this repo) — MCP servers, Cloudflare, services, dotfiles
-- **Mobile Pipeline** (~/Pipeline/) — AI code generation pipeline (Swift/Kotlin)
-- **Personal Projects** — everything else
+This repo covers the full local dev infrastructure: MCP servers, Cloudflare services, launchd management, and dotfiles.
 
 ## System Architecture
 
