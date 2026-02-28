@@ -109,7 +109,7 @@
 ### Phase 4 — NOT Done
 | Item | Status | Reason |
 |------|--------|--------|
-| GitHub SSH key on VM | ❌ | Using SCP workaround. GITHUB_PAT stored but no SSH key. |
+| GitHub SSH key on VM | ✅ | ed25519 key registered on GitHub as executor-vm |
 
 ## Phase 5 — Orchestration Wiring ✅
 
@@ -184,7 +184,6 @@
 | Item | Why manual |
 |------|-----------|
 | Add GitHub MCP server to portal (dashboard) | Third-party OAuth server, dashboard-only |
-| GitHub SSH key on VM | Key generation + authorization |
 
 ## Key Credentials
 
