@@ -26,6 +26,7 @@ deltaops.dev — managed via Cloudflare DNS.
 | mac-mcp.deltaops.dev | Cloudflare Tunnel → localhost:3001 | Tunnel |
 | executor.deltaops.dev | Cloudflare Tunnel → Lightsail VM (QUIC, hardened) | Tunnel ✅ |
 | ssh-mac.deltaops.dev | Cloudflare Tunnel → Mac SSH (port 22) | Tunnel |
+| mcp-test.deltaops.dev | MCP Server Portal (CF Access OAuth) | Portal ✅ |
 
 ## Workers
 
@@ -35,6 +36,13 @@ deltaops.dev — managed via Cloudflare DNS.
 
 - Mac tunnel: mac-mcp.deltaops.dev (HTTP/2, 4 connections) + ssh-mac.deltaops.dev (SSH)
 - Executor tunnel: executor.deltaops.dev (QUIC, retries 5, grace 30s, keepalive 90s, metrics enabled)
+
+## MCP Server Portal
+
+- Portal: mcp-test.deltaops.dev (24 tools: 10 vault + 11 mac + 3 portal)
+- Managed OAuth with Dynamic Client Registration
+- Access policies on portal + individual servers
+- Decision: ADR-0030 (adopt)
 
 ## Resources
 

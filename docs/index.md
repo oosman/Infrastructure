@@ -29,7 +29,7 @@ Local dev infrastructure: MCP servers, Cloudflare tunnels, launchd services, vau
     - [Git Conventions](git-conventions.md) — Branching, commits, PRs, merge strategy
     - [Known Risks](risks.md) — SPOFs, mitigations, operational constraints
     - [Completion Ledger](completion.md) — Canonical record of what's done
-- **[Decisions](decisions/0001-foundational-constraints.md)** — Architecture Decision Records (ADR-0001 through ADR-0028)
+- **[Decisions](decisions/0001-foundational-constraints.md)** — Architecture Decision Records (ADR-0001 through ADR-0030)
 
 ## Quick Verification
 

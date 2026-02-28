@@ -23,7 +23,8 @@ This repo covers the full local dev infrastructure: MCP servers, Cloudflare serv
 ```
 Claude.ai (Opus 4.6 orchestrator, 200K context)
     │
-    │ MCP connections (Streamable HTTP)
+    │ MCP Portal: mcp-test.deltaops.dev (CF Access OAuth)
+    │ → vault-mcp (10 tools) + mac-mcp (11 tools) + 3 portal tools
     ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  MCP Servers                                                     │
@@ -113,4 +114,5 @@ See ADR-0007.
 | Mac MCP | mac-mcp.deltaops.dev | Local Mac | Secret path + Bearer | ✅ Healthy |
 | vault-mcp | vault.deltaops.dev | CF Worker | Bearer | ✅ Healthy |
 | executor | executor.deltaops.dev | Lightsail VM | x-auth-token | ✅ Healthy |
+| Portal | mcp-test.deltaops.dev | CF Access | OAuth (Managed) | ✅ 24 tools |
 | AI Gateway | CF AI Gateway | Cloudflare | Token | Phase 7 |

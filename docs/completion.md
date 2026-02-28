@@ -9,7 +9,7 @@
 |------|--------|--------|------|
 | CLAUDE.md with v2 architecture, 63 lines | ✅ | b30c1e1 | 2026-02-28 |
 | AGENTS.md → CLAUDE.md symlink | ✅ | e2f453f | 2026-02-28 |
-| ADRs 0001-0029 (all plan decisions captured) | ✅ | 782973e + 92411fe | 2026-02-28 |
+| ADRs 0001-0030 (all plan decisions captured) | ✅ | 782973e + 92411fe | 2026-02-28 |
 | Slash commands (15) | ✅ | 428c1f0 | 2026-02-28 |
 | Skills (7) | ✅ | 428c1f0 | 2026-02-28 |
 | kb-writer agent | ✅ | 428c1f0 | 2026-02-28 |
@@ -74,13 +74,13 @@
 | Worker secrets set | ✅ | VAULT_AUTH_TOKEN, EXECUTOR_SECRET, GITHUB_PAT, GITHUB_WEBHOOK_SECRET | 2026-02-28 |
 | Wrangler OAuth stored | ✅ | ~/.wrangler/config/default.toml | 2026-02-28 |
 | REST API works with Bearer | ✅ | /health (no auth), /tasks + /mcp (Bearer required) | 2026-02-28 |
-| vault-mcp connected in Claude.ai | 🔄 | Other session troubleshooting | 2026-02-28 |
+| vault-mcp connected in Claude.ai | ✅ | Via MCP Portal (mcp-test.deltaops.dev), 24 tools | 2026-02-28 |
 
 ### Phase 3 — NOT Done
 | Item | Status | Reason |
 |------|--------|--------|
 | /sse backward compat endpoint | ❌ | Returns 410 (deprecated). Plan said keep for compat — decided not worth it. |
-| 10 tools validated from Claude.ai MCP | 🔄 | Blocked on Claude.ai connector |
+| 10 tools validated from Claude.ai MCP | ✅ | Validated via Portal (ADR-0030) |
 
 ## Phase 4 — Executor Hardening ✅
 
@@ -202,5 +202,5 @@
 
 | Phase | Path | Status |
 |-------|------|--------|
-| Phase 5 | .prompts/phase5-session.md | Complete |
-| Phase 6 | .prompts/phase6-session.md | Ready |
+| Phase 5 | .prompts/phase5-session.md | ✅ Complete |
+| Phase 6 | .prompts/phase6-session.md | ✅ Complete |

@@ -76,7 +76,7 @@ The active work stream is building the infrastructure itself — the system that
 | 3 | vault-mcp v2 (Streamable HTTP, 10 tools, D1+KV) | ✅ Complete |
 | 4 | Executor Hardening (systemd, memory/CPU limits, dedicated user) | ✅ Complete |
 | 5 | Orchestration Wiring (execute→D1 lifecycle, circuit breakers, mermaid) | ✅ Complete |
-| 6 | Portal Spike (MCP Server Portal evaluation) | 🔄 Next |
+| 6 | Portal Spike (MCP Server Portal — adopted) | ✅ Complete |
 | 7 | AI Gateway (classification routing, cost analytics) | Planned |
 | 8 | Context Continuity (compaction, session handoff) | Planned |
 
