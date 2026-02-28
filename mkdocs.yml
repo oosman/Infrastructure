@@ -16,6 +16,9 @@ theme:
         icon: material/brightness-7
         name: Switch to dark mode
     - scheme: slate
+      primary: indigo
+      accent: teal
+      toggle:
         icon: material/brightness-4
         name: Switch to light mode
   features:
@@ -30,9 +33,11 @@ theme:
     - content.code.annotate
     - content.action.edit
     - toc.follow
+
 plugins:
   - search
   - tags
+
 markdown_extensions:
   - admonition
   - pymdownx.details
@@ -55,6 +60,7 @@ markdown_extensions:
       emoji_generator: !!python/name:zensical.extensions.emoji.to_svg
   - toc:
       permalink: true
+
 nav:
   - Home: index.md
   - Completion Ledger: completion.md
