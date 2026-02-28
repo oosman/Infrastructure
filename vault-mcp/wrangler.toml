@@ -15,11 +15,6 @@ database_id = "5a0c53ff-963c-48f9-b68d-f13536104aa1"
 binding = "TASKS_KV"
 id = "0e01cc2910764d66a3cf8910f8e25eff"
 
-[durable_objects]
-bindings = [
-  { name = "VAULT_MCP", class_name = "VaultMcpAgent" }
-]
-
 [[migrations]]
 tag = "v1"
 new_classes = ["McpAgent"]
@@ -27,3 +22,7 @@ new_classes = ["McpAgent"]
 [[migrations]]
 tag = "v2"
 renamed_classes = [{ from = "McpAgent", to = "VaultMcpAgent" }]
+
+[[migrations]]
+tag = "v3"
+deleted_classes = ["VaultMcpAgent"]

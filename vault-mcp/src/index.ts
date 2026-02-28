@@ -1,5 +1,5 @@
-import { McpAgent } from "agents/mcp";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 
 import type { Env } from "./env";
 import { json, errorResponse, verifyBearerAuth, now } from "./utils";
@@ -24,37 +24,32 @@ import { handleTranscriptSearch, handleTranscriptIngest } from "./routes/transcr
 import { handleExecuteProxy } from "./routes/execute-proxy";
 
 // ============================================================
-// VaultMcpAgent — Durable Object with MCP server
+// Create MCP server with all tools registered
 // ============================================================
-export class VaultMcpAgent extends McpAgent<Env, {}, {}> {
-  server = new McpServer({ name: "vault-mcp", version: "2.0.0" });
-
-  async init() {
-    registerWorkflowTool(this.server, this.env);
-    registerWorkflowQueryTool(this.server, this.env);
-    registerTaskTool(this.server, this.env);
-    registerExecuteTool(this.server, this.env);
-    registerGithubTool(this.server, this.env);
-    registerCheckpointTool(this.server, this.env);
-    registerSearchTool(this.server, this.env);
-    registerPricingTool(this.server, this.env);
-    registerHealthTool(this.server, this.env);
-    registerBackupTool(this.server, this.env);
-  }
+function createMcpServer(env: Env): McpServer {
+  const server = new McpServer({ name: "vault-mcp", version: "2.0.0" });
+  registerWorkflowTool(server, env);
+  registerWorkflowQueryTool(server, env);
+  registerTaskTool(server, env);
+  registerExecuteTool(server, env);
+  registerGithubTool(server, env);
+  registerCheckpointTool(server, env);
+  registerSearchTool(server, env);
+  registerPricingTool(server, env);
+  registerHealthTool(server, env);
+  registerBackupTool(server, env);
+  return server;
 }
 
 // ============================================================
-// Auth helpers
+// Auth: secret path segment (Claude.ai) OR Bearer token (scripts)
 // ============================================================
-
-// Check if path starts with /<token>/ (secret path segment for Claude.ai)
 function verifyPathAuth(pathname: string, env: Env): { authenticated: boolean; stripped: string } {
   const token = env.VAULT_AUTH_TOKEN;
   const prefix = `/${token}/`;
   if (pathname.startsWith(prefix)) {
     return { authenticated: true, stripped: "/" + pathname.slice(prefix.length) };
   }
-  // Also handle /<token> with no trailing path
   if (pathname === `/${token}`) {
     return { authenticated: true, stripped: "/" };
   }
@@ -62,7 +57,7 @@ function verifyPathAuth(pathname: string, env: Env): { authenticated: boolean; s
 }
 
 // ============================================================
-// Worker fetch handler — routes to DO or REST
+// Worker fetch handler
 // ============================================================
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -75,23 +70,20 @@ export default {
         headers: {
           "Access-Control-Allow-Origin": "*",
           "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-          "Access-Control-Allow-Headers": "Authorization, Content-Type, Upgrade",
+          "Access-Control-Allow-Headers": "Authorization, Content-Type",
           "Access-Control-Max-Age": "86400",
         },
       });
     }
 
-    // Health — no auth required
+    // Health — no auth
     if (pathname === "/health" && request.method === "GET") {
       return json({ status: "ok", version: "2.0.0", timestamp: now() });
     }
 
     // SSE deprecated
     if (pathname === "/sse") {
-      return json({
-        error: "SSE transport deprecated in v2. Use /mcp with Streamable HTTP (WebSocket).",
-        docs: "https://modelcontextprotocol.io/docs/concepts/transports#streamable-http"
-      }, 410);
+      return json({ error: "SSE deprecated in v2. Use /mcp (Streamable HTTP)." }, 410);
     }
 
     // GitHub webhook — own HMAC auth
@@ -99,68 +91,61 @@ export default {
       return handleGitHubWebhook(request, env);
     }
 
-    // --- Dual auth: secret path segment (Claude.ai) OR Bearer token (scripts/CC) ---
+    // --- Dual auth ---
     const pathAuth = verifyPathAuth(pathname, env);
     const bearerAuth = verifyBearerAuth(request, env);
     const authenticated = pathAuth.authenticated || bearerAuth;
+    if (pathAuth.authenticated) pathname = pathAuth.stripped;
 
-    // If path auth matched, use the stripped path for routing
-    if (pathAuth.authenticated) {
-      pathname = pathAuth.stripped;
-    }
-
-    // MCP transport — route to Durable Object
+    // MCP Streamable HTTP — stateless, per-request
     if (pathname === "/mcp") {
-      if (!authenticated) {
-        return errorResponse("Unauthorized", 401);
-      }
+      if (!authenticated) return errorResponse("Unauthorized", 401);
 
-      // Rewrite URL to /mcp so the Agents SDK sees the right path
+      const server = createMcpServer(env);
+      const transport = new WebStandardStreamableHTTPServerTransport({
+        sessionIdGenerator: undefined, // stateless
+      });
+
+      await server.connect(transport);
+
+      // Rewrite URL so transport sees /mcp
       const mcpUrl = new URL(request.url);
       mcpUrl.pathname = "/mcp";
-      const mcpRequest = new Request(mcpUrl.toString(), request);
+      const mcpRequest = new Request(mcpUrl.toString(), {
+        method: request.method,
+        headers: request.headers,
+        body: request.body,
+      });
 
-      return (VaultMcpAgent as any).serve("/mcp").fetch(mcpRequest, env, ctx);
+      return transport.handleRequest(mcpRequest);
     }
 
     // === All remaining routes require auth ===
-    if (!authenticated) {
-      return errorResponse("Unauthorized", 401);
-    }
+    if (!authenticated) return errorResponse("Unauthorized", 401);
 
     const waitUntil = (p: Promise<any>) => ctx.waitUntil(p);
 
-    // REST: Workflow routes
+    // Rewrite request if path-auth stripped the token
+    const restRequest = pathAuth.authenticated
+      ? new Request(new URL(pathname + url.search, url.origin).toString(), request)
+      : request;
+
     if (pathname.startsWith("/workflow")) {
-      // Rewrite request URL if path-auth stripped the token
-      const restRequest = pathAuth.authenticated
-        ? new Request(new URL(pathname + url.search, url.origin).toString(), request)
-        : request;
       const res = await handleWorkflowRoutes(restRequest, env);
       if (res) return res;
     }
 
-    // REST: Task routes
     if (pathname.startsWith("/tasks")) {
-      const restRequest = pathAuth.authenticated
-        ? new Request(new URL(pathname + url.search, url.origin).toString(), request)
-        : request;
       const res = await handleTaskRoutes(restRequest, env, pathname, waitUntil);
       if (res) return res;
     }
 
-    // REST: Transcript search & ingest
     if (pathname === "/search" && request.method === "GET") {
-      const restRequest = pathAuth.authenticated
-        ? new Request(new URL(pathname + url.search, url.origin).toString(), request)
-        : request;
       return handleTranscriptSearch(restRequest, env);
     }
     if (pathname === "/transcripts" && request.method === "POST") {
       return handleTranscriptIngest(request, env);
     }
-
-    // REST: Execute proxy
     if (pathname === "/execute" && request.method === "POST") {
       return handleExecuteProxy(request, env);
     }
