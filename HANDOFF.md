@@ -11,7 +11,7 @@
 ```
 Claude.ai → CC on VM → ssh mac → full Mac access
 ```
-- VM: `ssh -i ~/.ssh/lightsail-pipeline.pem ubuntu@100.53.55.116`
+- VM: `ssh -i ~/.ssh/lightsail-infra.pem ubuntu@100.53.55.116`
 - VM → Mac: `ssh mac` (configured in ~/.ssh/config, uses ssh-mac.deltaops.dev tunnel)
 - Can restart mac-mcp: `ssh mac "launchctl kickstart -k gui/501/com.osman.local-mcp"`
 

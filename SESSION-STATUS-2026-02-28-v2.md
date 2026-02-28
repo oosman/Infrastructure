@@ -7,7 +7,7 @@
 - dotfiles/ repo: handoff skill cleaned (44e350a)
 - VM: ~/pipeline → ~/executor, ~/Pipeline → archive
 - VM: systemd unit + package.json + log lines cleaned
-- SSH key: lightsail-pipeline.pem → lightsail-infra.pem
+- SSH key: lightsail-infra.pem → lightsail-infra.pem
 - Archive dir: mobile-pipeline-extract → vault-mcp-extract
 - CF tunnel: pipeline-executor → executor (a118767b)
 - CF DNS CNAME updated to new tunnel ID
