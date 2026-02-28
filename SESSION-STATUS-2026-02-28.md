@@ -45,3 +45,9 @@
 | CF_API_TOKEN | ✅ Valid |
 | MAC_MCP_AUTH_TOKEN | ✅ In use |
 | EXECUTOR_SECRET | ✅ Stored |
+
+## Validation — Phases 1-2
+Run: 2026-02-28 ~11:15 AM CT
+Result: **21/21 PASS**, 1 N/A (executor SSE — pure JSON), 1 womp (hardware limitation, moot — sleep disabled)
+
+Tested: VM SSH, executor health+auth, mac-mcp auth (bare/bearer/secret-path), tunnel configs (both), credential perms, cron, minio, SSE keepalive, sleep prevention, WiFi watchdog, backup SSH path, keychain secrets, sudo access, dashboard settings (screenshots)
