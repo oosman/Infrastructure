@@ -1,76 +1,37 @@
-# HANDOFF — 2026-02-28 Session End
+# HANDOFF — 2026-02-28 (Updated)
 
 ## Resume Point
-**Phase 1 Remaining:** D1 migrations, tunnel config fix, log rotation, executor verification.
+**Phase 3 is in progress (parallel session).** Next after that: Phase 4 (Executor Hardening).
 
-## Context
-This session closed two critical items:
-1. **P0 mac-mcp zero-auth RCE** — secret path segment auth, commit `41a99e2`
-2. **Backup connection** — VM can SSH to Mac via CF Tunnel (`ssh mac`), restart mac-mcp if needed
+## What's Complete
+- **Phase 1** — Security: auth, backup SSH, tunnel config, secrets, D1, cleanup
+- **Phase 2** — Reliability: SSE keepalive, sleep prevention, log rotation, WiFi detection, tunnel alerts
 
-The primary and backup paths are now both operational:
-| Path | Route | Purpose |
-|------|-------|---------|
-| Primary | Claude.ai → CF Tunnel → mac-mcp (secret path) | Normal operation |
-| Backup | Claude.ai → CC on VM → `ssh mac` → Mac | mac-mcp recovery |
-
-## Immediate Next Steps
-
-### Step 1: Fix AWS CLI ✅ DONE
-```bash
+## Backup Connection
 ```
-```bash
+Claude.ai → CC on VM → ssh mac → full Mac access
 ```
-Region: us-east-1.
-
-### Step 2: Run D1 Migrations
-```bash
-npx wrangler d1 migrations apply vault-db --remote
-```
-
-### Step 3: Fix Tunnel Config
-Remove `http2Origin: true` from Mac tunnel config (origin is plain HTTP).
-
-### Step 4: Verify Executor on VM
-```bash
-ssh mac  # from VM, or direct SSH
-# then on VM:
-systemctl status executor
-curl http://localhost:8080/health
-curl https://executor.deltaops.dev/health
-```
-
-### Step 5: Log Rotation
-Set up newsyslog on Mac + logrotate on VM.
-
-## What Changed Today
-| Component | Change | Commit |
-|-----------|--------|--------|
-| local-mcp/server.js | Secret path auth + Accept header fix | `41a99e2` |
-| local-mcp/cloudflared-config.yml | Added ssh-mac.deltaops.dev ingress | (other session) |
-| infrastructure/CLAUDE.md | Secrets/Keychain section, vault-db | `850d424`, `ea371e4` |
-| infrastructure/docs/architecture.md | vault-db references | `ea371e4` |
-| dotfiles/claude/CLAUDE.md | Secrets/Keychain section | `1a328aa` |
-| dotfiles/claude/scripts/secrets.py | Infra keys added | `1a328aa` |
-| D1 database | D1 database renamed to vault-db | UUID: 5a0c53ff-963c-48f9-b68d-f13536104aa1 |
-| VM SSH config | `Host mac` via cloudflared proxy | (other session) |
+- VM: `ssh -i ~/.ssh/lightsail-pipeline.pem ubuntu@100.53.55.116`
+- VM → Mac: `ssh mac` (configured in ~/.ssh/config, uses ssh-mac.deltaops.dev tunnel)
+- Can restart mac-mcp: `ssh mac "launchctl kickstart -k gui/501/com.osman.local-mcp"`
 
 ## Keychain State
 | Key | Status |
 |-----|--------|
-| CF_API_TOKEN | ✅ Valid, verified |
-| MAC_MCP_AUTH_TOKEN | ✅ Valid, in use |
-| CF_ACCESS_CLIENT_ID | ⚠️ Stale — remove |
-| CF_ACCESS_CLIENT_SECRET | ⚠️ Stale — remove |
+| CF_API_TOKEN | ✅ Valid |
+| MAC_MCP_AUTH_TOKEN | ✅ In use |
 | EXECUTOR_SECRET | ❌ Not yet stored |
 
-## Claude.ai MCP State
-- Mac (secret path): Connected ✅
-- Mac (old bare /mcp): Still exists — DELETE IT
-- Cloudflare Developer Platform: Configured
-- GitHub: Connected
+## Commits Today (local-mcp)
+| Hash | Description |
+|------|-------------|
+| `41a99e2` | Secret path auth |
+| `df7b068` | SSH backup path |
+| `cb04c0b` | Tunnel config fix |
+| `013b4cf` | SSE keepalive + log rotation |
+| `9996f72` | WiFi change detection |
 
-## Key Lessons
-- Claude.ai MCP connectors support only URL + OAuth. No custom headers.
-- Secret path segment is the canonical auth pattern for self-hosted MCP behind CF Tunnel.
-- VM → SSH → Mac via CF Tunnel provides Claude.ai-accessible backup (through CC dispatch on VM).
+## Still TODO
+- [ ] Delete old Mac MCP connector (bare /mcp URL)
+- [ ] local-mcp repo needs git remote + push
+- [ ] Phase 4+: Executor hardening, orchestration, portal, gateway, dashboard

@@ -26,7 +26,7 @@
 | EXECUTOR_SECRET in keychain | ❌ | From HANDOFF keychain state |
 
 ### VM Details
-- Instance: infra-vm (Lightsail Small, us-east-1a) — Note: AWS name is still "pipeline-vm" (cannot rename)
+- Instance: infra-vm (Lightsail Small, us-east-1a) — Note: AWS name may still be "pipeline-vm" (Lightsail cannot rename instances)
 - IP: 100.53.55.116
 - OS: Ubuntu 24.04, Node 20.20.0
 - SSH: `ssh vm` (config in ~/.ssh/config)
