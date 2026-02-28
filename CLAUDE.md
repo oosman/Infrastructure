@@ -11,7 +11,7 @@ Never dispatch with --model opus. Mac MCP server rejects it.
 
 ```
 Claude.ai (Opus orchestrator, 200K context)
-  → vault-mcp (vault.deltaops.dev) — CF Worker, McpAgent DO, D1+KV
+  → vault-mcp (vault.deltaops.dev) — CF Worker, Streamable HTTP, D1+KV
   → mac-mcp (mac-mcp.deltaops.dev) — Node.js behind CF Tunnel
   → executor (executor.deltaops.dev) — Lightsail VM, CF Tunnel, systemd
 ```

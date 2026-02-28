@@ -30,7 +30,7 @@ Claude.ai (Opus 4.6 orchestrator, 200K context)
 │                                                                   │
 │  vault-mcp (CF Worker)    mac-mcp (CF Tunnel)    executor-mcp    │
 │  ┌──────────────────┐     ┌──────────────────┐   ┌────────────┐ │
-│  │ McpAgent class    │     │ Node.js + Express│   │ Lightsail  │ │
+│  │ Streamable HTTP   │     │ Node.js + Express│   │ Lightsail  │ │
 │  │ Streamable HTTP   │     │ Streamable HTTP  │   │ Direct HTTPS│ │
 │  │ D1 + KV + DO      │     │ HTTP/2 tunnel    │   │ or Tunnel  │ │
 │  │ 10 consolidated   │     │ 3-layer auth     │   │ Bearer auth│ │

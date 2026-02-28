@@ -39,4 +39,4 @@ deltaops.dev — managed via Cloudflare DNS.
 
 - D1 database (vault-db): workflow state tables
 - Workers KV: human task storage (TASKS_KV namespace)
-- Durable Objects: McpAgent backing store
+- Stateless Worker with Streamable HTTP MCP transport

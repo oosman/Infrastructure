@@ -36,7 +36,7 @@ Bearer token in MCP config. Rotate quarterly: `npx wrangler secret put VAULT_AUT
 - Runtime: Cloudflare Workers (free tier)
 - Database: D1 (SQLite)
 - KV: Workers KV (task storage)
-- Durable Objects: McpAgent class
+- Stateless Worker — no Durable Objects (all state in D1/KV)
 
 ## Status
 
