@@ -60,7 +60,7 @@ launchctl list | grep com.osman              # services
 - Never create top-level ~/ directories. Use ~/Developer/.
 - All .claude/ config in ~/Developer/dotfiles/claude/, symlinked.
 - Full passwordless sudo for user osman via /etc/sudoers.d/claude-full.
-- Docs: see docs/ for architecture, setup, ADRs 0001-0028.
+- Docs: see docs/ for architecture, setup, ADRs 0001-0029.
 
 ## Session Protocol
 

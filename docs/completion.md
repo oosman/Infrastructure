@@ -9,7 +9,7 @@
 |------|--------|--------|------|
 | CLAUDE.md with v2 architecture, 63 lines | ✅ | b30c1e1 | 2026-02-28 |
 | AGENTS.md → CLAUDE.md symlink | ✅ | e2f453f | 2026-02-28 |
-| ADRs 0001-0028 (all plan decisions captured) | ✅ | 782973e | 2026-02-28 |
+| ADRs 0001-0029 (all plan decisions captured) | ✅ | 782973e + 92411fe | 2026-02-28 |
 | Slash commands (15) | ✅ | 428c1f0 | 2026-02-28 |
 | Skills (7) | ✅ | 428c1f0 | 2026-02-28 |
 | kb-writer agent | ✅ | 428c1f0 | 2026-02-28 |
@@ -180,5 +180,5 @@
 
 | Phase | Path | Status |
 |-------|------|--------|
-| Phase 5 | .prompts/phase5-session.md | Ready |
+| Phase 5 | .prompts/phase5-session.md | Complete |
 | Phase 6 | .prompts/phase6-session.md | Ready |

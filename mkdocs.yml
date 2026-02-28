@@ -108,4 +108,5 @@ nav:
       - decisions/0026-consensus-worktree-isolation.md
       - decisions/0027-executor-stay-with-tunnel.md
       - decisions/0028-mermaid-compression-protocol.md
+      - decisions/0029-cli-strict-mcp-workaround.md
   - Tags: tags.md
