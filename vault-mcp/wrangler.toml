@@ -1,0 +1,25 @@
+name = "vault-mcp"
+main = "src/index.ts"
+compatibility_date = "2025-02-01"
+compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = true
+
+[[d1_databases]]
+binding = "VAULT_DB"
+database_name = "vault-db"
+database_id = "5a0c53ff-963c-48f9-b68d-f13536104aa1"
+
+[[kv_namespaces]]
+binding = "TASKS_KV"
+id = "0e01cc2910764d66a3cf8910f8e25eff"
+
+[durable_objects]
+bindings = [
+  { name = "VAULT_MCP", class_name = "VaultMcpAgent" }
+]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["VaultMcpAgent"]
