@@ -23,9 +23,6 @@ import { handleGitHubWebhook } from "./routes/github-webhook";
 import { handleTranscriptSearch, handleTranscriptIngest } from "./routes/transcript";
 import { handleExecuteProxy } from "./routes/execute-proxy";
 
-// ============================================================
-// Create MCP server with all 10 tools
-// ============================================================
 function createServer(env: Env): McpServer {
   const server = new McpServer({ name: "vault-mcp", version: "2.0.0" });
   registerWorkflowTool(server, env);
@@ -41,9 +38,6 @@ function createServer(env: Env): McpServer {
   return server;
 }
 
-// ============================================================
-// Auth: secret path segment (Claude.ai) OR Bearer token (scripts)
-// ============================================================
 function verifyPathAuth(pathname: string, env: Env): { authenticated: boolean; stripped: string } {
   const token = env.VAULT_AUTH_TOKEN;
   const prefix = `/${token}/`;
@@ -56,9 +50,6 @@ function verifyPathAuth(pathname: string, env: Env): { authenticated: boolean; s
   return { authenticated: false, stripped: pathname };
 }
 
-// ============================================================
-// Worker fetch handler
-// ============================================================
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
@@ -101,17 +92,16 @@ export default {
     if (pathname === "/mcp") {
       if (!authenticated) return errorResponse("Unauthorized", 401);
 
-      // GET: return 204 immediately (no long-lived SSE in Workers)
+      // GET: 204 (no long-lived SSE in Workers)
       if (request.method === "GET") {
         return new Response(null, { status: 204 });
       }
 
-      // DELETE: acknowledge session close
+      // DELETE: 204 (session close ack)
       if (request.method === "DELETE") {
         return new Response(null, { status: 204 });
       }
 
-      // Only POST carries JSON-RPC messages
       if (request.method !== "POST") {
         return new Response("Method Not Allowed", {
           status: 405,
@@ -119,18 +109,22 @@ export default {
         });
       }
 
-      const server = createServer(env);
-      const handler = createMcpHandler(server);
-
-      // Rewrite URL so handler sees /mcp
+      // createMcpHandler requires Accept to include BOTH application/json AND
+      // text/event-stream. Claude.ai may not send both. Force-fix the header
+      // (same pattern as mac-mcp server.js).
       const mcpUrl = new URL(request.url);
       mcpUrl.pathname = "/mcp";
+      const headers = new Headers(request.headers);
+      headers.set("Accept", "application/json, text/event-stream");
+
       const mcpRequest = new Request(mcpUrl.toString(), {
-        method: request.method,
-        headers: request.headers,
+        method: "POST",
+        headers,
         body: request.body,
       });
 
+      const server = createServer(env);
+      const handler = createMcpHandler(server);
       return handler(mcpRequest, env, ctx);
     }
 
