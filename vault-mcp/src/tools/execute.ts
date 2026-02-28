@@ -47,6 +47,7 @@ async function proxyToExecutor(env: Env, params: {
   language?: string;
   stack?: string;
   verbosity?: string;
+  task_id?: string;
 }) {
   const url = env.EXECUTOR_URL ?? EXECUTOR_DEFAULT_URL;
 
@@ -126,7 +127,7 @@ export function registerExecuteTool(server: McpServer, env: Env) {
         const taskId = task.id;
 
         // 3. Proxy to executor (existing logic)
-        const result = await proxyToExecutor(env, params);
+        const result = await proxyToExecutor(env, { ...params, task_id: taskId });
         const latencyMs = Date.now() - startTime;
 
         // 4. Check for executor error

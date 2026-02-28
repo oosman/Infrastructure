@@ -124,7 +124,7 @@ export default {
       });
 
       const server = createServer(env);
-      const handler = createMcpHandler(server);
+      const handler = createMcpHandler(server as any);
       return handler(mcpRequest, env, ctx);
     }
 
@@ -143,7 +143,7 @@ export default {
     }
 
     if (pathname.startsWith("/tasks")) {
-      const res = await handleTaskRoutes(restRequest, env, pathname, waitUntil);
+      const res = await handleTaskRoutes(restRequest, env, waitUntil);
       if (res) return res;
     }
 
