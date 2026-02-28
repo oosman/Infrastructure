@@ -1,54 +1,69 @@
 # HANDOFF — 2026-02-28 Session End
 
 ## Resume Point
-**Phase 1.0: Restore VM SSH / Backup Connection** — this is the #1 priority.
+**Phase 1 Remaining:** D1 migrations, tunnel config fix, log rotation, executor verification.
 
 ## Context
-This session closed the P0 mac-mcp zero-auth RCE using a secret URL path segment. That was important but jumped the queue — the plan says VM SSH (Phase 1.0) should come first because it unblocks the fallback chain and executor work.
+This session closed two critical items:
+1. **P0 mac-mcp zero-auth RCE** — secret path segment auth, commit `41a99e2`
+2. **Backup connection** — VM can SSH to Mac via CF Tunnel (`ssh mac`), restart mac-mcp if needed
+
+The primary and backup paths are now both operational:
+| Path | Route | Purpose |
+|------|-------|---------|
+| Primary | Claude.ai → CF Tunnel → mac-mcp (secret path) | Normal operation |
+| Backup | Claude.ai → CC on VM → `ssh mac` → Mac | mac-mcp recovery |
 
 ## Immediate Next Steps
 
-### Step 1: Fix AWS CLI
+### Step 1: Fix AWS CLI (human — needs IAM credentials from password manager)
 ```bash
 rm ~/.aws/credentials ~/.aws/config
+```
+```bash
 aws configure
 ```
-Credentials are in 1Password / password manager. Region: us-east-1.
+Region: us-east-1.
 
-### Step 2: Verify VM SSH
+### Step 2: Run D1 Migrations
 ```bash
-aws lightsail get-instance --instance-name <name>
-ssh ubuntu@<ip>
+npx wrangler d1 migrations apply vault-db --remote
 ```
-If SSH fails, check Lightsail console for: instance state, firewall rules (port 22), SSH key.
 
-### Step 3: Verify Fallback Chain Prerequisites
-On the VM, confirm:
-- [ ] `~/dotfiles/claude/` exists with symlinks to `~/.claude/`
-- [ ] `~/Developer/infrastructure/` repo cloned
-- [ ] `claude` CLI works (CC fallback)
-- [ ] vault-mcp MCP config points to production Worker
+### Step 3: Fix Tunnel Config
+Remove `http2Origin: true` from Mac tunnel config (origin is plain HTTP).
 
-### Step 4: Continue Phase 1
-- D1 migrations: `npx wrangler d1 migrations apply vault-db --remote`
-- Tunnel config fix (remove `http2Origin: true`)
-- Log rotation
+### Step 4: Verify Executor on VM
+```bash
+ssh mac  # from VM, or direct SSH
+# then on VM:
+systemctl status executor
+curl http://localhost:8080/health
+curl https://executor.deltaops.dev/health
+```
+
+### Step 5: Log Rotation
+Set up newsyslog on Mac + logrotate on VM.
 
 ## What Changed Today
 | Component | Change | Commit |
 |-----------|--------|--------|
 | local-mcp/server.js | Secret path auth + Accept header fix | `41a99e2` |
-| infrastructure/CLAUDE.md | Secrets/Keychain section | `850d424` |
+| local-mcp/cloudflared-config.yml | Added ssh-mac.deltaops.dev ingress | (other session) |
+| infrastructure/CLAUDE.md | Secrets/Keychain section, vault-db | `850d424`, `ea371e4` |
+| infrastructure/docs/architecture.md | vault-db references | `ea371e4` |
 | dotfiles/claude/CLAUDE.md | Secrets/Keychain section | `1a328aa` |
 | dotfiles/claude/scripts/secrets.py | Infra keys added | `1a328aa` |
+| D1 database | Renamed pipeline-db → vault-db | UUID: 5a0c53ff-963c-48f9-b68d-f13536104aa1 |
+| VM SSH config | `Host mac` via cloudflared proxy | (other session) |
 
 ## Keychain State
 | Key | Status |
 |-----|--------|
 | CF_API_TOKEN | ✅ Valid, verified |
 | MAC_MCP_AUTH_TOKEN | ✅ Valid, in use |
-| CF_ACCESS_CLIENT_ID | ⚠️ Stale (CF Access abandoned) |
-| CF_ACCESS_CLIENT_SECRET | ⚠️ Stale (CF Access abandoned) |
+| CF_ACCESS_CLIENT_ID | ⚠️ Stale — remove |
+| CF_ACCESS_CLIENT_SECRET | ⚠️ Stale — remove |
 | EXECUTOR_SECRET | ❌ Not yet stored |
 
 ## Claude.ai MCP State
@@ -57,5 +72,7 @@ On the VM, confirm:
 - Cloudflare Developer Platform: Configured
 - GitHub: Connected
 
-## Key Lesson
-Claude.ai MCP connectors support only URL + OAuth. No custom headers. Secret path segment is the canonical auth pattern for self-hosted MCP servers behind CF Tunnel.
+## Key Lessons
+- Claude.ai MCP connectors support only URL + OAuth. No custom headers.
+- Secret path segment is the canonical auth pattern for self-hosted MCP behind CF Tunnel.
+- VM → SSH → Mac via CF Tunnel provides Claude.ai-accessible backup (through CC dispatch on VM).
