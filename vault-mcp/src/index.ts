@@ -69,7 +69,7 @@ export default {
       return new Response(null, {
         headers: {
           "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
           "Access-Control-Allow-Headers": "Authorization, Content-Type",
           "Access-Control-Max-Age": "86400",
         },
@@ -100,6 +100,30 @@ export default {
     // MCP Streamable HTTP — stateless, per-request
     if (pathname === "/mcp") {
       if (!authenticated) return errorResponse("Unauthorized", 401);
+
+      // Stateless: only POST carries JSON-RPC messages
+      // GET (SSE stream) and DELETE (session close) are not applicable
+      if (request.method === "GET") {
+        return new Response("event: endpoint\ndata: /mcp\n\n", {
+          status: 200,
+          headers: {
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+          },
+        });
+      }
+
+      if (request.method === "DELETE") {
+        return json({ ok: true }, 200);
+      }
+
+      if (request.method !== "POST") {
+        return new Response("Method Not Allowed", {
+          status: 405,
+          headers: { Allow: "GET, POST, DELETE" },
+        });
+      }
 
       const server = createMcpServer(env);
       const transport = new WebStandardStreamableHTTPServerTransport({
