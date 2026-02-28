@@ -83,6 +83,11 @@ The active work stream is building the infrastructure itself — the system that
 ## Principles
 
 - **Humans own intent and curation**, machines own implementation and validation
-- **Model discipline**: Opus plans, Sonnet/Haiku implements (see [ADR-0005](decisions/0005-model-discipline.md))
-- **Decomposition over monoliths**: break large tasks into scoped CC agent dispatches
-- **Validate before accepting**: every task result is checked by the orchestrator
+- **Model discipline**: Opus plans, Sonnet/Haiku implements — enforced at server level ([ADR-0005](decisions/0005-model-discipline.md))
+- **Validate prerequisites before executing**: every phase starts with a tool capability audit, credential check, and blocker identification (see [plan-validation-prompt](https://github.com/oosman/Infrastructure/blob/main/plan-validation-prompt.md))
+- **Record completions, not plans**: if it's not in [completion.md](completion.md), it didn't happen — per-session status files are archived, the ledger is canonical
+- **Naming consistency is load-bearing**: terminology drift (pipeline→infrastructure, McpAgent→Streamable HTTP) caused real failures across sessions. Fix naming immediately, not later.
+- **Secrets from Keychain, never pasted**: all credentials read programmatically via `security find-generic-password`. If missing, provide the exact store command — never ask for the value.
+- **Self-sufficiency**: if you can do it via MCP tools (Mac, Cloudflare, vault) or CC dispatch, do it. Only escalate to human for: CF dashboard UI, AWS console, password manager, physical hardware.
+- **Deterministic edits over rewrites**: use sed/patch for targeted fixes. Full file rewrites risk losing content and create merge conflicts.
+- **Decomposition over monoliths**: break large tasks into scoped CC agent dispatches with clear acceptance criteria
