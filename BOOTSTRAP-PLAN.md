@@ -12,11 +12,11 @@ Rebuild the dev surface from the ground up. Three-instance model:
 
 1. **PERSONAL** — ~/dotfiles/ ↔ oosman/dotfiles repo. NOW.
 2. **INFRASTRUCTURE** — ~/Developer/infrastructure/ ↔ oosman/infrastructure repo. NOW.
-3. **MOBILE CODEGEN** — ~/Developer/mobile-codegen/ ↔ new repo. LATER, after infra is complete.
+3. **FUTURE CODEGEN** — ~/Developer/codegen-future/ ↔ new repo. LATER, after infra is complete.
 
 ## Naming Purge
 
-The words **"pipeline"**, **"deltaforce"**, and **"Pipeline"** must be eliminated from ALL:
+The words **"(legacy)"**, **"(legacy)"**, and **"(legacy)"** must be eliminated from ALL:
 - Directory names, repo names, CLAUDE.md files, launchd plists
 - .zshrc aliases/functions, Claude.ai project instructions
 - CC dispatch default paths, mcp-config.json files
@@ -37,7 +37,7 @@ Rules:
 - CC subagent config (AGENTS.md, agent definitions) must specify `model: sonnet` explicitly.
 - Opus is the orchestrator sitting in Claude.ai (or interactive CC). It decides WHAT to do. Sonnet/Haiku do the work.
 - If a Sonnet agent fails on a task, escalate to Opus for re-planning — do NOT re-run with Opus as executor.
-- This applies to all three instances (personal, infrastructure, mobile codegen).
+- This applies to all three instances (personal, infrastructure, future codegen).
 
 Rationale: Opus context is expensive and limited (200K). Using it for execution wastes the orchestrator's context window on implementation details. Sonnet handles 95%+ of coding tasks. Haiku handles mechanical tasks at fraction of the cost. Opus adds value through judgment, not keystrokes.
 
@@ -94,7 +94,7 @@ This is your primary interface for all local work. Use it first, always.
 1. **execSync blocks event loop** — run_command uses execSync. During a 25s git operation, /health is unreachable. Watchdog kills server. Command is orphaned. This is the #1 cause of "error occurred during tool execution."
 2. **Launchd minimal PATH** — server inherits /usr/bin:/bin. Child processes can't find node, claude, brew tools. `env: node: No such file or directory` in logs.
 3. **CLAUDE_BIN hardcoded** — `/Users/osman/.npm/_npx/becf7b9e49303068/node_modules/.bin/claude` is volatile npx cache path. Breaks on CC update.
-4. **CC dispatch defaults to ~/Pipeline/** — contaminated deltaforce repo.
+4. **CC dispatch defaults to ~/Developer/archive/legacy/** — contaminated legacy-archived repo.
 5. **GET /mcp SSE polling** — 30s timeout creates reconnect storm in logs.
 6. **No concurrency limits** — 50 simultaneous commands = OOM.
 7. **Tokens in plaintext** — LOCAL_MCP_TOKEN in .zshrc, VAULT_AUTH_TOKEN in mitmproxy plist.
@@ -255,7 +255,7 @@ SECURITY
 Replace "Your Name"/"you@example.com" in ~/.gitconfig with real values.
 
 ### A2. Fix SSH or settle on HTTPS
-SSH key exists (ed25519, label "moshi-mobile") but NOT registered with GitHub.
+SSH key exists (ed25519, label "moshi-infra") but NOT registered with GitHub.
 Either add to github.com/settings/keys OR commit to HTTPS-only via gh.
 
 ### A3. Warp reset
@@ -266,9 +266,9 @@ Target: only macOS defaults + Developer/ + dotfiles/ in ~/
 
 | Current | Destination |
 |---|---|
-| ~/Pipeline/ | ~/Developer/archive/deltaforce-legacy/ |
-| ~/pipeline-spine/ | ~/Developer/archive/pipeline-spine/ |
-| ~/pipeline-build/ | ~/Developer/archive/pipeline-build/ |
+| ~/Developer/archive/legacy/ | ~/Developer/archive/legacy-archived-legacy/ |
+| ~/Developer/archive/legacy-spine/ | ~/Developer/archive/legacy-spine/ |
+| ~/Developer/archive/legacy-build/ | ~/Developer/archive/legacy-build/ |
 | ~/happy-server/ | ~/Developer/projects/happy-server/ |
 | ~/mcp-memory-service/ | ~/Developer/archive/mcp-memory-service/ |
 | ~/local-mcp/ | (already moved in B11) |
@@ -285,7 +285,7 @@ Set cleanupPeriodDays to 30.
 
 ### A6. Clean .zshrc
 - Remove LOCAL_MCP_TOKEN
-- Remove all pipeline/deltaforce aliases and wt() function
+- Remove all workflow/legacy-archived aliases and wt() function
 - Remove commented-out happy alias
 - Fix PATH ordering
 - Verify secrets loaded from Keychain
@@ -295,17 +295,17 @@ Rewrite as pure personal global config. Remove project-specific references.
 Add model discipline rule: Opus plans, Sonnet/Haiku execute.
 
 ### A8. Fix mitmproxy plist
-References ~/Pipeline/mitmproxy_addon.py (contaminated). Disable until infra repo has the addon.
+References ~/Developer/archive/legacy/mitmproxy_addon.py (contaminated). Disable until infra repo has the addon.
 
 ### A9. Naming purge
 ```bash
-grep -ri "deltaforce\|pipeline" ~/dotfiles/ ~/.zshrc ~/Library/LaunchAgents/
+grep -ri "legacy-archived\|workflow" ~/dotfiles/ ~/.zshrc ~/Library/LaunchAgents/
 ```
 → must return zero results.
 
 ### Validation
 - `ls ~` shows only: Applications/ Desktop/ Developer/ Documents/ Downloads/ Library/ Movies/ Music/ Pictures/ Public/ dotfiles/
-- grep for "deltaforce"/"pipeline" → zero results
+- grep for "(legacy)"/"(legacy)" → zero results
 - .gitconfig has real identity
 - git push works
 - no plaintext secrets
@@ -322,7 +322,7 @@ oosman/infrastructure exists (created 2026-02-24). Evaluate state. If contaminat
 |---|---|---|
 | Global | ~/dotfiles/claude/CLAUDE.md → ~/.claude/CLAUDE.md | Identity, constraints, conventions. Includes model discipline rule. |
 | Infrastructure | ~/Developer/infrastructure/CLAUDE.md | vault-mcp, local-mcp, cloudflare, lightsail. Includes model discipline rule. |
-| (Future) Mobile | ~/Developer/mobile-codegen/CLAUDE.md | Swift, Kotlin, mobile codegen. Includes model discipline rule. |
+| (Future) Future | ~/Developer/codegen-future/CLAUDE.md | Swift, Kotlin, future codegen. Includes model discipline rule. |
 
 ### KB3. Infrastructure docs skeleton
 ```
@@ -355,7 +355,7 @@ Separate from current project. Clean instructions referencing new repo. Model di
 REPO
  1. ~/Developer/infrastructure/ exists and is a git repo          → pass
  2. git remote -v shows oosman/infrastructure                     → pass
- 3. No files contain "deltaforce" or "pipeline"                   → zero matches
+ 3. No files contain "(legacy)" or "(legacy)"                   → zero matches
  4. git log shows clean history (no contaminated commits)         → pass
 
 CLAUDE.md FILES
@@ -363,7 +363,7 @@ CLAUDE.md FILES
  6. ~/.claude/CLAUDE.md contains "Model Discipline" section       → pass
  7. ~/Developer/infrastructure/CLAUDE.md exists                   → pass
  8. ~/Developer/infrastructure/CLAUDE.md contains model discipline→ pass
- 9. grep -r "deltaforce\|Pipeline" across all CLAUDE.md files    → zero
+ 9. grep -r "legacy-archived\|Workflow" across all CLAUDE.md files    → zero
 
 DOCS SKELETON
 10. docs/ directory has architecture.md, setup.md, local-mcp.md   → all exist
@@ -378,18 +378,18 @@ DOCS SKELETON
 ## Phase D — Repo Surgery
 
 ### D1. Archive on GitHub
-- oosman/deltaforce → Archive
-- oosman/deltaforce-e2e-test → Archive
-- oosman/pipeline-spine → Archive
+- oosman/legacy-archived → Archive
+- oosman/legacy-archived-e2e-test → Archive
+- oosman/legacy-spine → Archive
 
 ### D2. Audit infrastructure repo for contamination
 
 ### D3. Migrate clean components
 | Component | Source | Action |
 |---|---|---|
-| vault-mcp worker | old deltaforce repo | Audit → copy if clean |
+| vault-mcp worker | old legacy-archived repo | Audit → copy if clean |
 | local-mcp server | ~/Developer/local-mcp/ | Already isolated |
-| mitmproxy addon | old deltaforce repo | Extract, audit |
+| mitmproxy addon | old legacy-archived repo | Extract, audit |
 | launchd plists | ~/Library/LaunchAgents/ | Already rewritten in B |
 | cloudflared configs | local-mcp/ | Already in place |
 | Shell scripts | dotfiles/claude/scripts/ | Audit, keep useful ones |
@@ -403,39 +403,39 @@ DOCS SKELETON
 
 ```
 ARCHIVES
- 1. oosman/deltaforce on GitHub shows "archived" badge            → pass
- 2. oosman/deltaforce-e2e-test archived                           → pass
- 3. oosman/pipeline-spine archived                                → pass
+ 1. oosman/legacy-archived on GitHub shows "archived" badge            → pass
+ 2. oosman/legacy-archived-e2e-test archived                           → pass
+ 3. oosman/legacy-spine archived                                → pass
  4. None of the archived repos are cloned locally                 → pass
 
 MIGRATION
  5. vault-mcp source in ~/Developer/infrastructure/vault-mcp/     → exists
  6. local-mcp server in ~/Developer/local-mcp/                    → exists, running
- 7. Migrated components have no "deltaforce"/"pipeline" references→ zero
+ 7. Migrated components have no "(legacy)"/"(legacy)" references→ zero
  8. Each migrated component passes its own test/health check      → pass
 
 ISOLATION
- 9. ~/Developer/infrastructure/ has NO code from deltaforce       → pass
-10. ~/Developer/local-mcp/ has NO imports from deltaforce         → pass
+ 9. ~/Developer/infrastructure/ has NO code from legacy-archived       → pass
+10. ~/Developer/local-mcp/ has NO imports from legacy-archived         → pass
 11. dotfiles/claude/commands/ — no commands reference old repos   → pass
 12. dotfiles/claude/scripts/ — no scripts reference old paths     → pass
 
 FINAL PURGE
-13. find ~/ -maxdepth 3 -iname "*deltaforce*" -o -iname "*pipeline*" → zero (excluding archive/)
-14. grep -ri "deltaforce\|pipeline" ~/dotfiles/ ~/.zshrc ~/Library/LaunchAgents/ ~/Developer/infrastructure/ ~/Developer/local-mcp/ → zero
+13. find ~/ -maxdepth 3 -iname "*legacy-archived*" -o -iname "*workflow*" → zero (excluding archive/)
+14. grep -ri "legacy-archived\|workflow" ~/dotfiles/ ~/.zshrc ~/Library/LaunchAgents/ ~/Developer/infrastructure/ ~/Developer/local-mcp/ → zero
 ```
 
 14/14 = Phase D complete.
 
 ---
 
-## Phase M — Mobile Codegen (FUTURE)
+## Phase M — Future Codegen (FUTURE)
 
 Only starts after infrastructure is complete and stable.
-- New repo: oosman/mobile-codegen
-- New CLAUDE.md for Swift/Kotlin/mobile
+- New repo: oosman/codegen-future
+- New CLAUDE.md for Swift/Kotlin/legacy
 - New Claude.ai project
-- CC sessions in ~/Developer/mobile-codegen/
+- CC sessions in ~/Developer/codegen-future/
 - Consumes infrastructure as a service
 - Model discipline: Opus orchestrates from Claude.ai, Sonnet/Haiku agents do all implementation
 
@@ -489,17 +489,17 @@ Never dispatch with --model opus. The server will reject it.
 - Node v25.6.1 (brew), BUT not on default launchd PATH
 - Claude Code 2.1.55, Gemini CLI 0.26.0, Wrangler 4.68.1 (all brew global)
 - gh CLI authed to oosman (HTTPS/keyring)
-- SSH key: ed25519 "moshi-mobile" — NOT registered with GitHub
+- SSH key: ed25519 "moshi-infra" — NOT registered with GitHub
 - Kiro installed
 - bat, eza, fd, rg, fzf, zoxide, lazygit, tmux, zellij
 
 ### Repos
 | Repo | Location | Remote | Status |
 |---|---|---|---|
-| deltaforce | ~/Pipeline/ | oosman/deltaforce | CONTAMINATED — archive |
-| pipeline-spine | ~/pipeline-spine/ | oosman/pipeline-spine | Archive |
+| legacy-archived | ~/Developer/archive/legacy/ | oosman/legacy-archived | CONTAMINATED — archive |
+| legacy-spine | ~/Developer/archive/legacy-spine/ | oosman/legacy-spine | Archive |
 | Infrastructure | (not cloned locally) | oosman/Infrastructure | Evaluate |
-| deltaforce-e2e-test | (not local) | oosman/deltaforce-e2e-test | Archive |
+| legacy-archived-e2e-test | (not local) | oosman/legacy-archived-e2e-test | Archive |
 | dotfiles | ~/dotfiles/ | oosman/dotfiles | Keep, clean |
 | happy-server | ~/happy-server/ | slopus/happy-server | Keep, move |
 | mcp-memory-service | ~/mcp-memory-service/ | doobidoo/mcp-memory-service | Archive |
@@ -515,7 +515,7 @@ Never dispatch with --model opus. The server will reject it.
 
 ### Home Directory Cruft
 11 dev directories in ~/ that belong in ~/Developer/:
-Pipeline/, pipeline-spine/, pipeline-build/, happy-server/, mcp-memory-service/,
+archive/legacy/, legacy-spine/, legacy-build/, happy-server/, mcp-memory-service/,
 local-mcp/, scripts/, bin/, security-migration/, homescreen-optimizer/, node_modules/
 
 ### Secrets in Plaintext
@@ -528,5 +528,5 @@ local-mcp/, scripts/, bin/, security-migration/, homescreen-optimizer/, node_mod
 - Express 4.22.1, MCP SDK 1.27.0, Node 25.6.1
 - CLAUDE_BIN hardcoded to: /Users/osman/.npm/_npx/becf7b9e49303068/node_modules/.bin/claude
 - Correct path: /opt/homebrew/bin/claude
-- cc_dispatch default cwd: ~/Pipeline/ (MUST be removed)
+- cc_dispatch default cwd: ~/Developer/archive/legacy/ (MUST be removed)
 - run_command uses execSync (MUST change to async)

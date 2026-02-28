@@ -2,7 +2,7 @@
 
 ## Overview
 Rebuild vault-mcp using the Cloudflare Agents SDK McpAgent class.
-Consolidate 20+ tools to 10. Rename /pipeline to /workflow. Use Streamable HTTP + SSE.
+Consolidate 20+ tools to 10. Rename routes to /workflow. Use Streamable HTTP + SSE.
 
 ## Architecture
 - Cloudflare Worker at vault.deltaops.dev
@@ -152,8 +152,8 @@ export default {
 ```
 
 ## IMPORTANT NOTES
-- Use "workflow" in routes, never "pipeline"
-- D1 binding is VAULT_DB (not PIPELINE_DB)
+- Use "workflow" in all routes
+- D1 binding is VAULT_DB
 - Do NOT run D1 migrations — another session handles this
 - Keep ULID generation (Crockford base32, monotonic)
 - Keep circuit breaker logic (daily $20, monthly $80)

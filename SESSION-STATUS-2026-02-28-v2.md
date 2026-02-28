@@ -6,7 +6,7 @@
 | Item | Status | Notes |
 |------|--------|-------|
 | AWS CLI | ✅ | Already working (oosman-cli IAM user) |
-| VM SSH | ✅ | `ssh vm` works (lightsail-pipeline.pem) |
+| VM SSH | ✅ | `ssh vm` works (lightsail-infra.pem) |
 | VM: ~/dotfiles/claude/ symlink | ✅ | ~/.claude → ~/dotfiles/claude |
 | VM: infrastructure repo | ✅ | SCP'd to ~/Developer/infrastructure/ |
 | VM: Claude CLI | ✅ | v2.1.63 installed via npm |
@@ -26,7 +26,7 @@
 | EXECUTOR_SECRET in keychain | ❌ | From HANDOFF keychain state |
 
 ### VM Details
-- Instance: pipeline-vm (Lightsail Small, us-east-1a)
+- Instance: infra-vm (Lightsail Small, us-east-1a) — Note: AWS name is still "pipeline-vm" (cannot rename)
 - IP: 100.53.55.116
 - OS: Ubuntu 24.04, Node 20.20.0
 - SSH: `ssh vm` (config in ~/.ssh/config)

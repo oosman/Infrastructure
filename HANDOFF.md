@@ -52,7 +52,7 @@ Set up newsyslog on Mac + logrotate on VM.
 | infrastructure/docs/architecture.md | vault-db references | `ea371e4` |
 | dotfiles/claude/CLAUDE.md | Secrets/Keychain section | `1a328aa` |
 | dotfiles/claude/scripts/secrets.py | Infra keys added | `1a328aa` |
-| D1 database | Renamed pipeline-db → vault-db | UUID: 5a0c53ff-963c-48f9-b68d-f13536104aa1 |
+| D1 database | D1 database renamed to vault-db | UUID: 5a0c53ff-963c-48f9-b68d-f13536104aa1 |
 | VM SSH config | `Host mac` via cloudflared proxy | (other session) |
 
 ## Keychain State

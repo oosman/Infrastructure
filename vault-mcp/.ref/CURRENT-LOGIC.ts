@@ -87,7 +87,7 @@ const VALID_COMPLEXITIES = ["trivial", "simple", "moderate", "complex"];
 // incrementCircuitBreaker(db, costUsd): upserts daily+monthly rows
 
 // ============================================================
-// Workflow (Pipeline) Operations — D1
+// Workflow Operations — D1
 // ============================================================
 // createTask(db, params): validates, checks CB, INSERT into tasks, returns task object
 // writeSpec(db, taskId, spec): UPDATE tasks SET spec=, status=in_progress

@@ -14,12 +14,12 @@
 ### Phase A ✅ (this session)
 - A1: Git identity → Osama Osman <oosman@deltaops.dev>
 - A2: SSH key exists, HTTPS working via gh. SSH registration deferred (manual)
-- A4: Home cleaned — Pipeline, pipeline-spine, pipeline-build, happy-server, mcp-memory-service, security-migration, homescreen-optimizer, scripts, bin all moved to ~/Developer/{archive,projects}/. ~/node_modules deleted.
+- A4: Home cleaned — Legacy dirs moved to ~/Developer/{archive,projects}/. ~/node_modules deleted.
 - A5: .claude/ cleaned — 400MB freed (debug, file-history, paste-cache, session-env)
-- A6: .zshrc — pipeline worktree block removed (205→104 lines), zero contamination
-- A8: mitmproxy plist — unloaded + archived (had plaintext VAULT_AUTH_TOKEN + stale ~/Pipeline path)
+- A6: .zshrc — legacy worktree block removed (205→104 lines), clean
+- A8: mitmproxy plist — unloaded + archived (had plaintext VAULT_AUTH_TOKEN + stale legacy path)
 - A8b: happy-server plist — unloaded + archived (stale path after move)
-- A9: Naming purge — 8 Keychain secrets migrated deltaforce→osman, secrets.py + bootstrap-secrets.sh updated, statusline script fixed
+- A9: Naming purge — 8 Keychain secrets migrated legacy→osman, secrets.py + bootstrap-secrets.sh updated, statusline script fixed
 
 ### Manual items remaining (non-blocking)
 1. Add oosman@deltaops.dev to GitHub Settings → Emails
@@ -32,7 +32,7 @@ Full plan at ~/Developer/infrastructure/BOOTSTRAP-PLAN.md, Phase KB section.
 
 Phase KB creates:
 1. Clean infrastructure git repo (~/Developer/infrastructure/ already exists)
-2. Three CLAUDE.md files: global (~/.claude/CLAUDE.md), infrastructure, mobile
+2. Two CLAUDE.md files: global (~/.claude/CLAUDE.md), infrastructure
 3. docs/ skeleton with ADR template
 4. New Claude.ai project with proper project instructions
 5. Model discipline rule: Opus orchestrates only, CC agents use Sonnet/Haiku

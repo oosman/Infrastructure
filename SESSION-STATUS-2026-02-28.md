@@ -40,7 +40,7 @@
 - Addresses recurring failure modes: tool audit, credential seeding, parallel coordination
 
 ### D1 Rename
-- pipeline-db → vault-db (UUID: 5a0c53ff-963c-48f9-b68d-f13536104aa1)
+- D1 database is now vault-db (UUID: 5a0c53ff-963c-48f9-b68d-f13536104aa1)
 - All references updated in plan, CLAUDE.md, docs/architecture.md
 
 ## NOT Done — Priority Order

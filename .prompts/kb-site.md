@@ -8,7 +8,7 @@ You are setting up a full documentation site for this infrastructure project usi
 - No mkdocs.yml exists yet
 - No GitHub Actions workflow exists
 - Git identity: Osama Osman, oosman@deltaops.dev
-- NAMING: This is an "infrastructure" project. Never use "pipeline" or "mobile-pipeline" or "deltaforce". Use "workflow" if you need to describe task routing.
+- NAMING: This is an "infrastructure" project. Use "workflow" for task routing. Use "infrastructure" for the project.
 
 ## Task 1: Create mkdocs.yml
 
@@ -68,10 +68,10 @@ ALL docs must have YAML frontmatter with: title, type, status, date (2026-02-28)
 ## Task 4: Clean stale references in existing docs
 
 Read ALL docs in docs/ and docs/decisions/. Fix:
-- "mobile-pipeline", "Mobile Pipeline", "pipeline", "deltaforce", "DeltaForce" -> "infrastructure" or "workflow"
-- "pipeline-db" -> "vault-db"
-- ~/Pipeline/ references -> remove or replace
-- architecture.md "Three-Instance Model" references Mobile Pipeline -> rewrite for infrastructure only
+- Deprecated naming -> "infrastructure" or "workflow"
+- Legacy DB names -> "vault-db"
+- Legacy path references -> remove or replace
+- architecture.md "Three-Instance Model" -> rewrite for infrastructure only
 - architecture.md should reflect: mac-mcp (secret path auth), vault-mcp (CF Worker), executor (Lightsail VM), backup (VM SSH to Mac)
 
 ## Task 5: Build and verify

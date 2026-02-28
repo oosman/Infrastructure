@@ -20,7 +20,7 @@ Claude.ai (Opus 4.6 orchestrator, 200K context)
 
 - **Auth:** Bearer token + CF Access Service Token + Anthropic IP allowlist (all endpoints)
 - **Transport:** Streamable HTTP primary, SSE deprecated but supported
-- **Naming:** "workflow" not "pipeline". vault-db is the D1 database.
+- **Naming:** "workflow" only. vault-db is the D1 database.
 - **Context budget:** 200K hard limit. ~7,500 overhead. Remainder for work.
 
 ## Secrets — macOS Keychain (NEVER ask the user to provide secrets)
@@ -63,7 +63,7 @@ search(query), pricing(), health(), backup()
 - LaunchAgents: ~/Library/LaunchAgents/com.osman.{local-mcp,mcp-tunnel,mcp-watchdog}.plist
 - Dotfiles: ~/Developer/dotfiles/claude/ (symlinked from ~/.claude/)
 - Infrastructure plan: infrastructure-plan-v2.md (canonical)
-- Archive reference: ~/Developer/archive/mobile-pipeline-extract/ (6 files, 1,617 lines)
+- Archive reference: ~/Developer/archive/vault-mcp-extract/ (6 files, 1,617 lines)
 
 ## Verification
 
