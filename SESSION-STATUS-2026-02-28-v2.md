@@ -2,57 +2,58 @@
 
 ## Completed This Session
 
-### Phase 1.0: VM SSH + Fallback Chain
-| Item | Status | Notes |
-|------|--------|-------|
-| AWS CLI | ✅ | Already working (oosman-cli IAM user) |
-| VM SSH | ✅ | `ssh vm` works (lightsail-infra.pem) |
-| VM: dotfiles symlink | ✅ | ~/.claude → ~/dotfiles/claude |
-| VM: infrastructure repo | ✅ | SCP'd to ~/Developer/infrastructure/ |
-| VM: Claude CLI | ✅ | v2.1.63 installed via npm |
-| D1 schema migration | ✅ | 7 tables + 4 indexes created via API |
-| Tunnel config | ✅ | Already clean |
+### Legacy Naming Purge
+- infrastructure/ repo: 10 files cleaned (c6784cf)
+- dotfiles/ repo: handoff skill cleaned (44e350a)
+- VM: ~/pipeline → ~/executor, ~/Pipeline → archive
+- VM: systemd unit + package.json + log lines cleaned
+- SSH key: lightsail-pipeline.pem → lightsail-infra.pem
+- Archive dir: mobile-pipeline-extract → vault-mcp-extract
+- CF tunnel: pipeline-executor → executor (a118767b)
+- CF DNS CNAME updated to new tunnel ID
+- Cannot rename: Lightsail instance "pipeline-vm" (AWS limitation)
 
 ### Phase 1.0b: Revive Executor
-| Item | Status | Notes |
-|------|--------|-------|
-| Executor process | ✅ | Running via systemd, healthy on :8080 |
-| Tunnel endpoint | ✅ | executor.deltaops.dev → 200 |
-| Tunnel renamed | ✅ | pipeline-executor → executor (new ID: a118767b) |
-| Old tunnel deleted | ✅ | 98b4f6eb confirmed deleted |
-| VM paths renamed | ✅ | ~/pipeline → ~/executor, ~/Pipeline → archive |
-| Systemd unit cleaned | ✅ | Description and paths updated |
+- Executor running via systemd, healthy on :8080
+- executor.deltaops.dev → 200 via new tunnel
+- Old tunnel (98b4f6eb) deleted
 
-### Legacy Naming Purge
-| Scope | Status | Notes |
-|-------|--------|-------|
-| infrastructure/ repo | ✅ | 10 files cleaned, committed c6784cf |
-| dotfiles/ repo | ✅ | handoff skill cleaned, committed 44e350a |
-| local-mcp/ repo | ✅ | Already clean |
-| VM executor code | ✅ | package.json + entrypoint.js log lines |
-| VM systemd units | ✅ | executor.service cleaned |
-| VM directories | ✅ | ~/pipeline → ~/executor |
-| SSH key | ✅ | lightsail-pipeline.pem → lightsail-infra.pem |
-| Archive dir | ✅ | mobile-pipeline-extract → vault-mcp-extract |
-| CF tunnel | ✅ | pipeline-executor → executor |
-| CF DNS CNAME | ✅ | Updated to new tunnel ID |
+### Phase 1.1: mac-mcp Auth — Already Done
+- Secret path segment + Bearer token (commit 41a99e2, prior session)
 
-### Cannot Rename (external)
-- Lightsail instance: `pipeline-vm` (AWS doesn't support renaming)
-- vault-mcp Worker route `/pipeline/...` (deployed code, fix in next Worker deploy)
+### Phase 4: Executor Hardening (partial)
+- Tunnel config hardened: quic protocol, retries 5, grace 30s, keepalive 90s, metrics
+- Journald limits: 200M max, 14-day retention
+- Logrotate: daily, 14 rotations, compressed
+- Auth (x-auth-token): working
+- Worktree isolation: built into executor code
+- Concurrency limit: MAX_EXECUTORS=2, 180s timeout
+- EXECUTOR_SECRET: stored in Mac Keychain
+- Decision: stay with tunnel (no Caddy needed)
 
-## VM Details
-- Instance: pipeline-vm (Lightsail Small, us-east-1a) — AWS name, cannot rename
-- IP: 100.53.55.116
-- OS: Ubuntu 24.04, Node 20.20.0
+### Phase 4: Remaining
+- [ ] Hardened systemd unit (dedicated executor user, MemoryMax, ProtectSystem)
+
+## Infrastructure State
+- VM: pipeline-vm (100.53.55.116), Ubuntu 24.04, Node 20.20.0
 - SSH: `ssh vm` (lightsail-infra.pem)
-- Tunnel: executor (a118767b-58b8-45be-bb8a-f8185d29a8de)
-- VAULT_AUTH_TOKEN: available in ~/executor/.env on VM
+- Tunnel: executor (a118767b-58b8-45be-bb8a-f8185d29a8de), quic, healthy
+- Executor: active (systemd), port 8080
+- VAULT_AUTH_TOKEN: in ~/executor/.env on VM
+- D1: vault-db (5a0c53ff), 7 tables + 4 indexes
 
-## Next: Phase 1.1 — Auth on mac-mcp (P0)
-mac-mcp is currently ZERO AUTH. Dual-connection model required:
-- Claude.ai → CF Access (CF-Access-Jwt-Assertion header)
-- CC/scripts → Bearer token (Authorization header)
+## Phase Status
+| Phase | Status |
+|-------|--------|
+| 0 KB Bootstrap | ✅ |
+| 1 Security | ✅ |
+| 2 SSE/Mac Hardening | ✅ |
+| 3 vault-mcp v2 | ✅ |
+| 4 Executor Hardening | 🔄 90% (systemd hardening remains) |
+| 5 Orchestration Wiring | Not started |
+| 6 Portal Spike | Not started |
+| 7 AI Gateway | Not started |
+| 8 Context Continuity | Not started |
 
-### Remaining Phase 1.0 items (need Osama input)
-1. GitHub SSH key on VM (for git pull)
+## Pending (need Osama)
+- [ ] GitHub SSH key on VM (for git pull — currently using SCP)
