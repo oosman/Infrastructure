@@ -30,7 +30,7 @@ Human intent → Claude.ai (Opus orchestrator)
 
 ## Current Focus
 
-The active work stream is building the infrastructure itself — the system that will later orchestrate mobile app builds and other projects. This is organized into phases:
+The active work stream is building the infrastructure itself — the system that will later orchestrate builds and other projects. This is organized into phases:
 
 | Phase | Focus | Status |
 |-------|-------|--------|

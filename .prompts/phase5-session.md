@@ -1,3 +1,5 @@
+> **Read COMPLETION.md first** — it is the canonical record of what's done.
+
 # Phase 5 — Orchestration Wiring Session Prompt
 
 ## Context

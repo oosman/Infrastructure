@@ -1,0 +1,178 @@
+# Infrastructure Completion Ledger
+
+> **Purpose:** Single source of truth for what's done. Every session reads this on start, updates it on finish.  
+> **Rule:** If it's not in this file, it didn't happen. If a session completes work, it adds entries here before ending.
+
+## Phase 0 — KB Bootstrap ✅
+
+| Item | Status | Commit | Date |
+|------|--------|--------|------|
+| CLAUDE.md with v2 architecture, 63 lines | ✅ | b30c1e1 | 2026-02-28 |
+| AGENTS.md → CLAUDE.md symlink | ✅ | e2f453f | 2026-02-28 |
+| ADRs 0001-0028 (all plan decisions captured) | ✅ | 782973e | 2026-02-28 |
+| Slash commands (15) | ✅ | 428c1f0 | 2026-02-28 |
+| Skills (7) | ✅ | 428c1f0 | 2026-02-28 |
+| kb-writer agent | ✅ | 428c1f0 | 2026-02-28 |
+| Compaction hooks in settings.json (3) | ✅ | 428c1f0 | 2026-02-28 |
+| Symlinks ~/.claude/* → dotfiles (8/8) | ✅ | bootstrap | 2026-02-28 |
+| Resume context comments on all docs (39/39) | ✅ | 782973e | 2026-02-28 |
+| Zensical + GitHub Pages live | ✅ | e2f453f | 2026-02-28 |
+| mkdocs.yml nav complete (43 entries) | ✅ | 782973e | 2026-02-28 |
+| docs: workflow, testing, ci-workflow, intent-validation, memory-layer | ✅ | 782973e | 2026-02-28 |
+| docs: architecture, cloudflare, vault-mcp, local-mcp, setup, risks, git-conventions, task-routing | ✅ | various | 2026-02-28 |
+| Stale refs purged (pipeline/deltaforce/mobile) | ✅ | c6784cf | 2026-02-28 |
+| McpAgent/DO refs updated to Streamable HTTP | ✅ | 0431001 | 2026-02-28 |
+
+## Phase 1 — Emergency Security ✅
+
+| Item | Status | Commit/Detail | Date |
+|------|--------|---------------|------|
+| mac-mcp secret path auth (closes P0 RCE) | ✅ | 41a99e2 (local-mcp) | 2026-02-28 |
+| mac-mcp returns 401 without auth | ✅ | verified curl | 2026-02-28 |
+| VM SSH accessible (`ssh vm` works) | ✅ | lightsail-infra.pem | 2026-02-28 |
+| Backup SSH: VM → Mac via CF Tunnel (`ssh mac`) | ✅ | ssh-mac.deltaops.dev | 2026-02-28 |
+| Executor revived, healthy on :8080 | ✅ | systemd enabled | 2026-02-28 |
+| D1 migrations: 8 tables created | ✅ | API direct (no wrangler) | 2026-02-28 |
+| D1 renamed: pipeline-db → vault-db | ✅ | 5a0c53ff-963c-48f9-b68d-f13536104aa1 | 2026-02-28 |
+| Tunnel config fixed (no http2Origin) | ✅ | cb04c0b | 2026-02-28 |
+| Secrets in Keychain (4/4) | ✅ | CF_API_TOKEN, VAULT_AUTH_TOKEN, MAC_MCP_AUTH_TOKEN, EXECUTOR_SECRET | 2026-02-28 |
+| .zshrc auto-exports secrets for CC | ✅ | dotfiles | 2026-02-28 |
+| minio unloaded | ✅ | | 2026-02-28 |
+| Credential files chmod 600 | ✅ | lightsail-infra.pem | 2026-02-28 |
+| Executor returns 401 without auth | ✅ | x-auth-token | 2026-02-28 |
+| Tunnels running HTTP/2 (Mac) / QUIC (VM) | ✅ | verified | 2026-02-28 |
+| AWS CLI working | ✅ | oosman-cli IAM user | 2026-02-28 |
+| Old bare /mcp Mac connector deleted | ✅ | Claude.ai UI | 2026-02-28 |
+
+### Phase 1 — NOT Done (acknowledged, deferred)
+| Item | Status | Reason |
+|------|--------|--------|
+| CF Access service tokens | ❌ Skipped | Claude.ai can't send custom headers. Secret path + Bearer is the auth model. |
+| WAF IP allowlist | ❌ Not configured | Deferred — nice-to-have, not blocking |
+| Browser Integrity / Bot Fight Mode disabled | ✅ | Done per Osama confirmation |
+
+## Phase 2 — SSE Reliability & Mac Hardening ✅
+
+| Item | Status | Detail | Date |
+|------|--------|--------|------|
+| SSE keepalive 30s on mac-mcp | ✅ | streaming responses | 2026-02-28 |
+| Mac sleep prevention | ✅ | pmset, processes holding | 2026-02-28 |
+| Log rotation (Mac) | ✅ | cron every 6 hours | 2026-02-28 |
+| WiFi change watchdog | ✅ | com.osman.mcp-watchdog running | 2026-02-28 |
+| Tunnel health alerts | ✅ | CF dashboard configured | 2026-02-28 |
+| Passwordless sudo | ✅ | /etc/sudoers.d/claude-full | 2026-02-28 |
+
+## Phase 3 — vault-mcp v2 ✅
+
+| Item | Status | Detail | Date |
+|------|--------|--------|------|
+| McpAgent DO deployed | ✅ then removed | Dropped DO — stateless Worker | 2026-02-28 |
+| Streamable HTTP transport | ✅ | WebStandardStreamableHTTPServerTransport | 2026-02-28 |
+| 10 consolidated tools registered | ✅ | workflow, workflow_query, task, execute, github, checkpoint, search, pricing, health, backup | 2026-02-28 |
+| D1 bound (vault-db) | ✅ | 8 tables | 2026-02-28 |
+| KV bound (TASKS_KV) | ✅ | 0e01cc2910764d66a3cf8910f8e25eff | 2026-02-28 |
+| Worker secrets set | ✅ | VAULT_AUTH_TOKEN, EXECUTOR_SECRET, GITHUB_PAT, GITHUB_WEBHOOK_SECRET | 2026-02-28 |
+| Wrangler OAuth stored | ✅ | ~/.wrangler/config/default.toml | 2026-02-28 |
+| REST API works with Bearer | ✅ | /health (no auth), /tasks + /mcp (Bearer required) | 2026-02-28 |
+| vault-mcp connected in Claude.ai | 🔄 | Other session troubleshooting | 2026-02-28 |
+
+### Phase 3 — NOT Done
+| Item | Status | Reason |
+|------|--------|--------|
+| /sse backward compat endpoint | ❌ | Returns 410 (deprecated). Plan said keep for compat — decided not worth it. |
+| 10 tools validated from Claude.ai MCP | 🔄 | Blocked on Claude.ai connector |
+
+## Phase 4 — Executor Hardening ✅
+
+| Item | Status | Detail | Date |
+|------|--------|--------|------|
+| Dedicated executor user (nologin) | ✅ | system account | 2026-02-28 |
+| ProtectSystem=strict, ProtectHome=read-only | ✅ | systemd hardened | 2026-02-28 |
+| PrivateTmp, NoNewPrivileges | ✅ | systemd | 2026-02-28 |
+| MemoryMax=512M, MemoryHigh=384M | ✅ | systemd | 2026-02-28 |
+| CPUQuota=80% | ✅ | systemd | 2026-02-28 |
+| Tunnel hardened (quic, retries, grace, keepalive) | ✅ | a118767b | 2026-02-28 |
+| Journald limits (200M, 14-day) | ✅ | | 2026-02-28 |
+| Logrotate (daily, 14 rotations) | ✅ | | 2026-02-28 |
+| Worktree isolation in executor code | ✅ | built-in | 2026-02-28 |
+| Orphan worktree cleanup cron | ✅ | every 4 hours | 2026-02-28 |
+| gh CLI on VM | ✅ | v2.87.3 | 2026-02-28 |
+| CLIs on VM: claude, codex, gemini | ✅ | 2.1.63, 0.104.0, 0.29.7 | 2026-02-28 |
+| Claude CLI on VM (Max OAuth) | ✅ | v2.1.63 | 2026-02-28 |
+| Executor tunnel: pipeline-executor → executor | ✅ | a118767b | 2026-02-28 |
+| Legacy naming purged on VM | ✅ | ~/pipeline→~/executor, systemd cleaned | 2026-02-28 |
+| EXECUTOR_SECRET in Keychain | ✅ | | 2026-02-28 |
+| local-mcp pushed to GitHub (private) | ✅ | oosman/local-mcp | 2026-02-28 |
+| VM SSH key renamed: lightsail-infra.pem | ✅ | | 2026-02-28 |
+| Decision: stay with tunnel (no Caddy) | ✅ | ADR-0027 | 2026-02-28 |
+
+### Phase 4 — NOT Done
+| Item | Status | Reason |
+|------|--------|--------|
+| GitHub SSH key on VM | ❌ | Using SCP workaround. GITHUB_PAT stored but no SSH key. |
+
+## Phase 5 — Orchestration Wiring ❌ Not Started
+
+### Code That Exists (ready to wire)
+- vault-mcp/src/tools/execute.ts (78 lines) — proxies to executor, no lifecycle
+- vault-mcp/src/tools/workflow.ts (320 lines) — full CRUD with circuit breaker checks
+- vault-mcp/src/logic/circuit-breaker.ts (69 lines) — D1 queries, $20/day halt, $80/mo alert
+- vault-mcp/src/logic/chooser.ts (153 lines) — model recommendation
+- vault-mcp/src/logic/consensus.ts (82 lines) — diff logic
+- executor/src/compress.js (280 lines) — Mermaid compression, 4 verbosity levels
+- executor/src/consensus.js (~80 lines) — 2-way diff
+- executor/src/entrypoint.js (613 lines) — HTTP server, auth, queue, CLI dispatch
+
+### What's Missing
+- execute.ts doesn't call workflow init/write/close (the wiring gap)
+- No end-to-end test has been run
+- Circuit breaker increment not called after execution
+- env.ts still references VAULT_MCP DurableObjectNamespace (stale)
+- wrangler.toml may have stale DO migration
+
+## Phase 6 — Portal Spike ❌ Not Started
+
+### Research Complete
+- Portal uses OAuth (Claude.ai compatible) ✅
+- Server URLs stored server-side (secret paths work) ✅
+- Known blocker: CF_API_TOKEN lacks Zero Trust permissions
+- Known blocker: vault-mcp /mcp requires Bearer (Portal can't pass it during sync)
+
+## Phase 7 — AI Gateway ❌ Not Started (deferred until Phase 5 traffic exists)
+## Phase 8 — Context Continuity ❌ Not Started (deferred until Phase 5 data flows)
+
+## Infrastructure State (verified 2026-02-28)
+
+| Component | URL | Status | Auth |
+|-----------|-----|--------|------|
+| vault-mcp | vault.deltaops.dev | ✅ v2.0.0 | Bearer (REST+MCP), /health unauthenticated |
+| mac-mcp | mac-mcp.deltaops.dev | ✅ v3.1.0, 11 tools | Secret path + Bearer |
+| executor | executor.deltaops.dev | ✅ healthy, 0 active jobs | x-auth-token |
+| KB site | oosman.github.io/Infrastructure | ✅ Zensical | Public |
+| D1 | vault-db (5a0c53ff) | ✅ 8 tables, 0 rows | Via vault-mcp |
+| KV | TASKS_KV (0e01cc29) | ✅ | Via vault-mcp |
+
+## Pending Actions (require Osama's hands)
+
+| Item | Why manual |
+|------|-----------|
+| vault-mcp Claude.ai connector | Other session in progress |
+| CF_API_TOKEN: add Zero Trust permissions (for Phase 6) | CF dashboard token edit |
+| GitHub SSH key on VM | Key generation + authorization |
+
+## Key Credentials
+
+| Secret | Keychain key | Purpose |
+|--------|-------------|---------|
+| Cloudflare API | CF_API_TOKEN | Workers/D1/KV (no Zero Trust) |
+| vault-mcp auth | VAULT_AUTH_TOKEN | Bearer for /mcp and REST |
+| mac-mcp secret | MAC_MCP_AUTH_TOKEN | URL path segment |
+| Executor auth | EXECUTOR_SECRET | x-auth-token header |
+| CF Account ID | (not a secret) | 3d18a8bf1d47b952ec66dc00b76f38cd |
+
+## Session Prompts
+
+| Phase | Path | Status |
+|-------|------|--------|
+| Phase 5 | .prompts/phase5-session.md | Ready |
+| Phase 6 | .prompts/phase6-session.md | Ready |

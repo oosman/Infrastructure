@@ -47,5 +47,5 @@ The docs site builds automatically on push to main:
 
 - Pre-commit hooks for linting and validation
 - PR checks for doc builds
-- Automated test pipeline (after test framework is established)
+- Automated test workflow (after test framework is established)
 - Wrangler deploy automation via GitHub Actions

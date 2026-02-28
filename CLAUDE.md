@@ -61,3 +61,9 @@ launchctl list | grep com.osman              # services
 - All .claude/ config in ~/Developer/dotfiles/claude/, symlinked.
 - Full passwordless sudo for user osman via /etc/sudoers.d/claude-full.
 - Docs: see docs/ for architecture, setup, ADRs 0001-0028.
+
+## Session Protocol
+
+1. On start: read COMPLETION.md (canonical record of what's done)
+2. On finish: update COMPLETION.md with what you completed (commit, item, date)
+3. If it's not in COMPLETION.md, assume it's not done

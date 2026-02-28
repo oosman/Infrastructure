@@ -1,3 +1,5 @@
+> **Read COMPLETION.md first** — it is the canonical record of what's done.
+
 # Phase 6 — MCP Server Portal Spike (30 min)
 
 ## Context
