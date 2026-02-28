@@ -1,106 +1,171 @@
 # Phase 5 — Orchestration Wiring Session Prompt
 
 ## Context
-Infrastructure phases 0-4 are complete. vault-mcp v2 is deployed at vault.deltaops.dev with 10 tools using stateless Streamable HTTP (McpAgent/DO dropped, using WebStandardStreamableHTTPServerTransport). Executor is running at executor.deltaops.dev with auth, Mermaid compression, and hardened systemd. D1 has 8 tables. KV has task storage. vault-mcp should be connected as an MCP server in Claude.ai by the time this session starts.
+Phases 0-4 complete. vault-mcp v2 deployed with 10 tools. Executor running. **Much of Phase 5 code already exists** — the gap is wiring the execute tool into the workflow lifecycle, not building from scratch.
 
-## Current State
-- vault-mcp: v2.0.0, Streamable HTTP, 10 tools, Bearer auth on /mcp and REST, /health unauthenticated
-- executor: Node.js on VM (100.53.55.116), port 8080, x-auth-token auth, MAX_EXECUTORS=2, 180s timeout
-- executor has: compress.js (Mermaid compression with 4 verbosity levels), consensus.js (2-way diff), entrypoint.js (613 lines)
-- vault-mcp execute tool already proxies to executor via POST /execute with x-auth-token
-- D1 tables: tasks, stages, circuit_breaker, model_stats, checkpoints, decisions, transcripts, _cf_KV
-- Secrets: EXECUTOR_SECRET, VAULT_AUTH_TOKEN, CF_API_TOKEN, MAC_MCP_AUTH_TOKEN (all in macOS Keychain)
-- VM secrets in /home/ubuntu/executor/.env
+## What ALREADY EXISTS (don't rebuild)
 
-## What Exists (don't rebuild)
-- vault-mcp/src/tools/execute.ts — proxy to executor, Mermaid extraction from response
-- vault-mcp/src/tools/workflow.ts — init/spec/write/close actions, D1 writes
-- vault-mcp/src/tools/workflow-query.ts — summary/consensus/state/stats/chooser queries
-- executor/src/compress.js — full Mermaid compression (normalizeOutput, toMermaid, 4 verbosity levels)
-- executor/src/consensus.js — 2-way consensus diffing
-- executor/src/entrypoint.js — HTTP server, auth, queueing, worktree isolation, CLI dispatch
+### vault-mcp (~/Developer/infrastructure/vault-mcp/)
+| File | Lines | What it does |
+|------|-------|-------------|
+| src/tools/execute.ts | 78 | Proxies to executor via POST /execute with x-auth-token. Returns normalized response. **Missing:** workflow init before, workflow write after, circuit breaker check. |
+| src/tools/workflow.ts | 320 | Full lifecycle: init (creates D1 task + checks circuit breaker), spec, write (logs stage), close. Already calls getCircuitBreakerState. |
+| src/tools/workflow-query.ts | 177 | Queries: summary, consensus, state, stats, chooser. |
+| src/logic/circuit-breaker.ts | 69 | getCircuitBreakerState (queries D1), incrementCircuitBreaker. Thresholds: $20/day halt, $80/month alert. |
+| src/logic/chooser.ts | 153 | Model recommendation based on task features. |
+| src/logic/consensus.ts | 82 | Consensus diffing logic. |
+| src/tools/task.ts | 223 | Human task CRUD in KV (separate from workflow tasks in D1). |
 
-## What Needs Wiring (Phase 5 deliverables)
+### Executor (VM: /home/ubuntu/executor/)
+| File | Lines | What it does |
+|------|-------|-------------|
+| src/entrypoint.js | 613 | HTTP server, auth (x-auth-token), job queue (MAX_EXECUTORS=2, 180s timeout), worktree isolation, dispatches to claude/codex/gemini CLIs. |
+| src/compress.js | 280 | Full Mermaid compression: normalizeOutput, toMermaid, 4 verbosity levels (summary/mermaid/standard/full). |
+| src/consensus.js | ~80 | 2-way diff between executor outputs. |
 
-### 5.1 Execute Tool Integration
-The execute tool proxies to the executor but doesn't integrate with workflow lifecycle. Wire it:
-1. Before proxying: check circuit breakers (query D1 daily/monthly spend)
-2. Before proxying: call workflow init to create task entry
-3. After response: call workflow write with stage output, cost, latency, tokens
-4. Return compressed result (executor already returns Mermaid by default)
-5. On error: log error stage, return graceful error
-
-### 5.2 Task Lifecycle End-to-End
-Test the full flow: init → spec → execute → write → close
-- Orchestrator (Claude.ai) calls execute tool
-- vault-mcp creates workflow task, proxies to executor, logs result, returns Mermaid
-- Orchestrator reviews, calls close
-
-### 5.3 Circuit Breakers
-In vault-mcp, before each execute:
-```sql
-SELECT SUM(cost_usd) FROM stages WHERE date(created_at) = date('now')
-SELECT SUM(cost_usd) FROM stages WHERE strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now')
+### CLIs on VM (all installed and authed)
 ```
-Thresholds: $2/task warn, $5/task halt, $20/day block, $80/month flag.
-Store state in circuit_breaker D1 table. Include in health() response.
+claude  2.1.63 (Claude Code) — Max OAuth
+codex   0.104.0 — ChatGPT sub
+gemini  0.29.7 — Gemini Ultra account
+```
 
-### 5.4 Mermaid Compression Validation
-Executor already has compress.js. Validate:
-- Default verbosity returns Mermaid (<80 tokens for simple tasks)
-- All 4 levels work (summary, mermaid, standard, full)
-- Consensus results return properly formatted diff Mermaid
+### D1 Tables (vault-db: 5a0c53ff-963c-48f9-b68d-f13536104aa1)
+tasks, stages, circuit_breaker, model_stats, checkpoints, decisions, transcripts, _cf_KV
 
-### 5.5 Per-CLI Validation
-Test each executor path end-to-end:
-1. claude (CC via Max OAuth on VM) — `execute({executor: "claude", ...})`
-2. codex (ChatGPT sub on VM) — `execute({executor: "codex", ...})`  
-3. gemini (Gemini CLI on VM) — `execute({executor: "gemini", ...})`
-4. consensus (2-way) — `execute({executor: "consensus", ...})`
-
-For each: verify auth, output format, Mermaid compression, workflow logging.
-
-Note: CLIs may not all be installed/authed on VM yet. Check first:
+### Secrets (macOS Keychain, account "osman")
 ```bash
-ssh vm "which claude && which codex && which gemini"
-ssh vm "claude --version && codex --version 2>/dev/null"
+security find-generic-password -a "osman" -s "SECRET_NAME" -w
+```
+| Key | Purpose |
+|-----|---------|
+| CF_API_TOKEN | Cloudflare API (Workers/D1/KV) |
+| VAULT_AUTH_TOKEN | Bearer for vault-mcp /mcp and REST |
+| MAC_MCP_AUTH_TOKEN | Secret path segment for mac-mcp |
+| EXECUTOR_SECRET | x-auth-token for executor.deltaops.dev |
+
+### Wrangler secrets (already set on vault-mcp Worker)
+VAULT_AUTH_TOKEN, EXECUTOR_SECRET, GITHUB_PAT, GITHUB_WEBHOOK_SECRET
+
+## What Needs Wiring (the actual Phase 5 work)
+
+### 5.1 Execute → Workflow Lifecycle Integration (the main gap)
+The execute tool (execute.ts) currently just proxies to the executor and returns. It needs to:
+
+1. **Before proxy:** Check circuit breaker, create workflow task via D1
+2. **After proxy:** Log stage result (cost, latency, tokens, model) to D1
+3. **On error:** Log error stage, return graceful message
+
+Concretely, modify `registerExecuteTool` in execute.ts to:
+```typescript
+// Before proxy:
+const cb = await getCircuitBreakerState(env.VAULT_DB);
+if (cb.halted) return mcpError(`Circuit breaker: ${cb.message}`);
+
+const task = await createTask(env.VAULT_DB, {
+  task_type: params.task_type ?? "feature",
+  complexity: params.complexity ?? "simple",
+  language: params.language ?? "typescript",
+  stack: params.stack ?? "node",
+});
+
+const start = Date.now();
+
+// Proxy (existing code)
+const result = await proxyToExecutor(env, params);
+
+// After proxy:
+const latencyMs = Date.now() - start;
+await writeStage(env.VAULT_DB, {
+  task_id: task.id,
+  stage_name: params.executor ?? "claude",
+  stage_type: "impl",
+  model: params.model ?? "sonnet-4.6",
+  tokens_input: result.tokens?.input ?? 0,
+  tokens_output: result.tokens?.output ?? 0,
+  cost_usd: estimateCost(result.tokens, params.model),
+  latency_ms: latencyMs,
+  output: result,
+});
+
+await incrementCircuitBreaker(env.VAULT_DB, estimatedCost);
 ```
 
-### 5.6 Escalation Protocol
-Cheapest → next tier on failure:
-DeepSeek → Flash → 2.5 Pro → Sonnet → Opus → Consensus → Human
+The `createTask` and `writeStage` functions already exist in workflow.ts — import and call them. Don't duplicate D1 logic.
 
-## Validation Criteria
-- [ ] Claude.ai → execute → vault-mcp → VM → executor → Mermaid back
-- [ ] Same path with each CLI (claude, codex, gemini)
-- [ ] Workflow lifecycle: init → execute → write → close
-- [ ] Every execution auto-logged to D1 stages table
-- [ ] Circuit breakers fire at thresholds
-- [ ] Mermaid compression < 80 tokens for simple tasks
-- [ ] Consensus 2-way returns diff Mermaid
-- [ ] Error handling: timeout, auth failure, network failure all graceful
+### 5.2 End-to-End Validation (test after wiring)
+Test each executor path with a trivial task:
+```bash
+# From Claude.ai via vault-mcp MCP tool (preferred) or via REST:
+VAULT_TOKEN=$(security find-generic-password -a "osman" -s "VAULT_AUTH_TOKEN" -w)
 
-## Key Files
-- ~/Developer/infrastructure/vault-mcp/src/tools/execute.ts
-- ~/Developer/infrastructure/vault-mcp/src/tools/workflow.ts
-- ~/Developer/infrastructure/vault-mcp/src/tools/workflow-query.ts
-- ~/Developer/infrastructure/vault-mcp/src/routes/execute-proxy.ts
-- ~/Developer/infrastructure/vault-mcp/wrangler.toml
-- VM: /home/ubuntu/executor/src/entrypoint.js
-- VM: /home/ubuntu/executor/src/compress.js
-- VM: /home/ubuntu/executor/src/consensus.js
+# Test claude executor
+curl -sf -X POST https://vault.deltaops.dev/tasks/execute \
+  -H "Authorization: Bearer $VAULT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "instruction": "echo hello world",
+    "executor": "claude",
+    "repo": "oosman/Infrastructure",
+    "task_type": "docs",
+    "complexity": "trivial"
+  }'
+
+# After: verify stage logged
+curl -sf -H "Authorization: Bearer $VAULT_TOKEN" "https://vault.deltaops.dev/workflow/stats"
+```
+
+Repeat for codex and gemini executors. Then test consensus (2-way).
+
+### 5.3 Verify Circuit Breakers Fire
+After a few test executions, check:
+```sql
+SELECT * FROM circuit_breaker;
+SELECT * FROM stages ORDER BY created_at DESC LIMIT 5;
+SELECT * FROM tasks ORDER BY created_at DESC LIMIT 5;
+```
+Use Cloudflare MCP `d1_database_query` tool with database_id `5a0c53ff-963c-48f9-b68d-f13536104aa1`.
+
+### 5.4 Verify Mermaid Compression
+The executor already compresses output. Verify the vault-mcp execute tool passes verbosity through and returns compressed results. Default should be Mermaid (<80 tokens for simple tasks).
+
+### 5.5 Stale Code Cleanup
+`src/env.ts` still references `VAULT_MCP: DurableObjectNamespace` — remove it (DO was dropped).
+`wrangler.toml` may still have DO migration — check and clean.
 
 ## Deploy Commands
 ```bash
 # vault-mcp
 cd ~/Developer/infrastructure/vault-mcp && npx wrangler deploy
 
-# Verify
+# Verify deploy
 curl -sf https://vault.deltaops.dev/health
+
+# Verify tools (with auth)
+VAULT_TOKEN=$(security find-generic-password -a "osman" -s "VAULT_AUTH_TOKEN" -w)
+curl -sf -X POST https://vault.deltaops.dev/mcp \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $VAULT_TOKEN" \
+  -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'
 ```
+
+## Validation Criteria
+- [ ] execute tool checks circuit breaker before proxying
+- [ ] execute tool creates workflow task in D1 before execution
+- [ ] execute tool logs stage result (cost, latency, tokens) to D1 after execution
+- [ ] Claude executor end-to-end works (instruction → VM → result → D1 logged)
+- [ ] Codex executor end-to-end works
+- [ ] Gemini executor end-to-end works
+- [ ] Consensus 2-way returns diff
+- [ ] Circuit breaker data accumulates in D1
+- [ ] Mermaid compression returns <80 tokens for trivial tasks
+- [ ] Error handling: timeout, auth failure, network failure all graceful
+- [ ] Stale DO references cleaned from env.ts and wrangler.toml
 
 ## Rules
 - Use sonnet for all CC dispatches (never opus)
-- Read from Keychain, never ask for secrets
+- Read secrets from Keychain, never ask Osama to paste them
 - Test via curl before claiming anything works
-- Don't rebuild what exists — wire it together
+- Don't rebuild existing code — wire it together
+- Commit and push after each working change
+- Git identity: Osama Osman <oosman@deltaops.dev>
