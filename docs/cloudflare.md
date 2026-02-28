@@ -8,7 +8,7 @@ Depends-on: architecture.md
 title: "Cloudflare Services"
 type: reference
 status: active
-date: 2026-02-27
+date: 2026-02-28
 tags: [cloudflare, infrastructure]
 ---
 
@@ -24,7 +24,8 @@ deltaops.dev — managed via Cloudflare DNS.
 |-----------|--------|------|
 | vault.deltaops.dev | Cloudflare Worker (vault-mcp) | Worker route |
 | mac-mcp.deltaops.dev | Cloudflare Tunnel → localhost:3001 | Tunnel |
-| executor.deltaops.dev | Cloudflare Tunnel → Lightsail VM | Tunnel (future) |
+| executor.deltaops.dev | Cloudflare Tunnel → Lightsail VM (QUIC, hardened) | Tunnel ✅ |
+| ssh-mac.deltaops.dev | Cloudflare Tunnel → Mac SSH (port 22) | Tunnel |
 
 ## Workers
 

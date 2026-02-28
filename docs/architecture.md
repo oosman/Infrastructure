@@ -23,20 +23,19 @@ This repo covers the full local dev infrastructure: MCP servers, Cloudflare serv
 ```
 Claude.ai (Opus 4.6 orchestrator, 200K context)
     │
-    │ MCP connections (Streamable HTTP, 3-layer auth)
+    │ MCP connections (Streamable HTTP)
     ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  MCP Servers                                                     │
 │                                                                   │
-│  vault-mcp (CF Worker)    mac-mcp (CF Tunnel)    executor-mcp    │
-│  ┌──────────────────┐     ┌──────────────────┐   ┌────────────┐ │
-│  │ Streamable HTTP   │     │ Node.js + Express│   │ Lightsail  │ │
-│  │ Streamable HTTP   │     │ Streamable HTTP  │   │ Direct HTTPS│ │
-│  │ D1 + KV + DO      │     │ HTTP/2 tunnel    │   │ or Tunnel  │ │
-│  │ 10 consolidated   │     │ 3-layer auth     │   │ Bearer auth│ │
-│  │ tools             │     │ SSE keepalive    │   │ Caddy + TLS│ │
-│  │ Bearer + CF Access│     │ 11 tools         │   │            │ │
-│  └──────────────────┘     └──────────────────┘   └────────────┘ │
+│  vault-mcp (CF Worker)    mac-mcp (CF Tunnel)                   │
+│  ┌──────────────────┐     ┌──────────────────┐                  │
+│  │ Streamable HTTP   │     │ Node.js + Express│                  │
+│  │ D1 + KV           │     │ Streamable HTTP  │                  │
+│  │ 10 consolidated   │     │ HTTP/2 tunnel    │                  │
+│  │ tools             │     │ Secret path auth │                  │
+│  │ Bearer token      │     │ 11 tools         │                  │
+│  └──────────────────┘     └──────────────────┘                  │
 └─────────────────────────────────────────────────────────────────┘
     │                                          │
     │ API calls (classification)               │ Task execution
@@ -47,21 +46,24 @@ Claude.ai (Opus 4.6 orchestrator, 200K context)
 │ • Cost analytics      │    │ ├── Codex CLI (ChatGPT auth)     │
 │ • Response caching    │    │ ├── Gemini CLI (Ultra acct)      │
 │ • Rate limiting       │    │ └── Consensus diffing            │
+│                       │    │ CF Tunnel (QUIC) — REST only     │
 └──────────────────────┘    └──────────────────────────────────┘
 ```
 
-## Auth Model (3-Layer)
+## Auth Model
 
-1. **Bearer token** — app-level, per-endpoint, in Authorization header
-2. **CF Access Service Token** — edge enforcement, CF-Access-Client-Id/Secret headers
-3. **Anthropic IP allowlist** — WAF rule blocking non-Anthropic IPs on MCP hostnames
+Auth varies by connection type:
+- **Claude.ai → mac-mcp:** Secret path segment in URL
+- **Claude.ai → vault-mcp:** Bearer token via MCP connector config
+- **CC/scripts → any endpoint:** Bearer token in Authorization header
+- **WAF IP allowlist:** Planned, not yet configured
 
-Each layer independently revocable. See ADR-0006.
+Each layer independently revocable. See ADR-0006 and ADR-0015 (dual-connection model).
 
 ## Transport
 
 - **Primary:** Streamable HTTP (current MCP spec)
-- **Deprecated:** SSE (kept on vault-mcp /sse for backward compat)
+- SSE endpoint on vault-mcp returns 410 Gone — removed entirely
 - See ADR-0008.
 
 ## Tool Reference (10 consolidated, vault-mcp)
@@ -93,7 +95,7 @@ See ADR-0007.
 
 | Service | Endpoint | Location | Auth | Status |
 |---------|----------|----------|------|--------|
-| Mac MCP | mac-mcp.deltaops.dev | Local Mac | 3-layer (Phase 1) | 🔴 No auth |
-| vault-mcp | vault.deltaops.dev | CF Worker | Bearer | 🟢 Healthy |
-| executor | executor.deltaops.dev | Lightsail VM | Bearer (Phase 1) | 🟡 SSH dead |
+| Mac MCP | mac-mcp.deltaops.dev | Local Mac | Secret path + Bearer | ✅ Healthy |
+| vault-mcp | vault.deltaops.dev | CF Worker | Bearer | ✅ Healthy |
+| executor | executor.deltaops.dev | Lightsail VM | x-auth-token | ✅ Healthy |
 | AI Gateway | CF AI Gateway | Cloudflare | Token | Phase 7 |

@@ -8,7 +8,7 @@ Depends-on: architecture.md
 title: "vault-mcp"
 type: reference
 status: active
-date: 2026-02-27
+date: 2026-02-28
 tags: [mcp, cloudflare, vault]
 ---
 
@@ -34,10 +34,10 @@ Bearer token in MCP config. Rotate quarterly: `npx wrangler secret put VAULT_AUT
 ## Infrastructure
 
 - Runtime: Cloudflare Workers (free tier)
-- Database: D1 (SQLite)
+- Database: D1 (SQLite) — vault-db (5a0c53ff-963c-48f9-b68d-f13536104aa1)
 - KV: Workers KV (task storage)
 - Stateless Worker — no Durable Objects (all state in D1/KV)
 
 ## Status
 
-Deployed and operational. Workflow state routes built (6 files, 1,617 lines). D1 migrations pending.
+Deployed v2.0.0. Stateless Worker with Streamable HTTP transport. 10 MCP tools, D1 (8 tables: tasks, stages, circuit_breaker, model_stats, checkpoints, decisions, transcripts, _cf_KV), KV (tasks). All migrations applied.

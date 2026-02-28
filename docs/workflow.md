@@ -16,14 +16,26 @@ tags: [workflow, orchestration]
 
 ## How Work Flows
 
-The orchestrator (Claude.ai with human) decomposes intent into concrete tasks. Tasks are dispatched to CC agents (Sonnet) on Mac or VM via mac-mcp `cc_dispatch`. Results flow back through conversation. vault-mcp logs workflow state to D1.
+The orchestrator (Claude.ai with human) decomposes intent into concrete tasks. Two execution paths:
+
+1. **Mac:** cc_dispatch via mac-mcp → CC agent (Sonnet) on Mac
+2. **VM:** execute tool via vault-mcp → executor on Lightsail → claude/codex/gemini CLI
 
 ```
 Human intent → Claude.ai (Opus orchestrator)
     → Decompose into tasks with acceptance criteria
+
+Path 1 (Mac):
     → cc_dispatch(name, prompt, cwd) via mac-mcp
-    → CC agent (Sonnet) executes on Mac or VM
+    → CC agent (Sonnet) executes on Mac
     → cc_result(name) returns output
+
+Path 2 (VM):
+    → execute(instruction, executor) via vault-mcp
+    → POST executor.deltaops.dev/execute
+    → claude/codex/gemini CLI on Lightsail VM
+    → Mermaid-compressed result → D1 logged
+
     → Orchestrator validates and accepts or retries
     → vault-mcp records workflow state to D1
 ```
@@ -34,15 +46,15 @@ The active work stream is building the infrastructure itself — the system that
 
 | Phase | Focus | Status |
 |-------|-------|--------|
-| 0 | KB Bootstrap (docs, ADRs, resume context) | In progress |
-| 1 | Auth hardening (3-layer auth on all endpoints) | Planned |
-| 2 | Tunnel stabilization (reconnect, watchdog) | Planned |
-| 3 | Executor on VM (CC agent on Lightsail) | Planned |
-| 4 | Naming purge and cleanup | Complete |
-| 5 | Consensus (multi-executor comparison) | Planned |
-| 6 | Workflow state (D1 tables, lifecycle) | Planned |
-| 7 | AI Gateway (classification, cost tracking) | Planned |
-| 8 | Portal (optional dashboard UI) | Deferred |
+| 0 | KB Bootstrap (docs, ADRs, commands, skills, resume context) | ✅ Complete |
+| 1 | Emergency Security (auth on all endpoints, SSH, secrets) | ✅ Complete |
+| 2 | SSE Reliability & Mac Hardening (keepalive, watchdog, logs) | ✅ Complete |
+| 3 | vault-mcp v2 (Streamable HTTP, 10 tools, D1+KV) | ✅ Complete |
+| 4 | Executor Hardening (systemd, memory/CPU limits, dedicated user) | ✅ Complete |
+| 5 | Orchestration Wiring (execute→workflow lifecycle, circuit breakers) | 🔄 Next |
+| 6 | Portal Spike (MCP Server Portal evaluation) | 🔄 Next |
+| 7 | AI Gateway (classification routing, cost analytics) | Planned |
+| 8 | Context Continuity (compaction, session handoff) | Planned |
 
 ## Principles
 

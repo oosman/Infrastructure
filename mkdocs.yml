@@ -63,7 +63,7 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-    - Completion Ledger: completion.md
+  - Completion Ledger: completion.md
   - Architecture: architecture.md
   - Workflow: workflow.md
   - Setup: setup.md
