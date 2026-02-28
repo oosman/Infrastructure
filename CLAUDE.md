@@ -20,7 +20,7 @@ Claude.ai (Opus 4.6 orchestrator, 200K context)
 
 - **Auth:** Bearer token + CF Access Service Token + Anthropic IP allowlist (all endpoints)
 - **Transport:** Streamable HTTP primary, SSE deprecated but supported
-- **Naming:** "workflow" not "pipeline" (except `pipeline-db` D1 resource)
+- **Naming:** "workflow" not "pipeline". vault-db is the D1 database.
 - **Context budget:** 200K hard limit. ~7,500 overhead. Remainder for work.
 
 ## Tool Reference (10 consolidated, vault-mcp)

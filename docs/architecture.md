@@ -83,7 +83,7 @@ See ADR-0007.
 2. **Dotfiles as source of truth**: ~/Developer/dotfiles/claude/ → ~/.claude/ via symlinks (ADR-0001)
 3. **Cloudflare Tunnel for access**: No open ports on Mac (ADR-0002)
 4. **Keychain for secrets**: macOS Keychain (account: osman), never plaintext
-5. **Naming**: "workflow" not "pipeline" (except pipeline-db D1 resource)
+5. **Naming**: "workflow" not "pipeline". vault-db is the D1 database.
 
 ## Service Map
 
