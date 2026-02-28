@@ -55,6 +55,9 @@ markdown_extensions:
       alternate_style: true
   - attr_list
   - md_in_html
+  - pymdownx.emoji:
+      emoji_index: !!python/name:zensical.extensions.emoji.twemoji
+      emoji_generator: !!python/name:zensical.extensions.emoji.to_svg
   - toc:
       permalink: true
 
