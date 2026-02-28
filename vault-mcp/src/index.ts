@@ -97,14 +97,32 @@ export default {
     const authenticated = pathAuth.authenticated || bearerAuth;
     if (pathAuth.authenticated) pathname = pathAuth.stripped;
 
-    // MCP — createMcpHandler (Cloudflare Agents SDK, stateless)
+    // MCP — stateless Streamable HTTP
     if (pathname === "/mcp") {
       if (!authenticated) return errorResponse("Unauthorized", 401);
+
+      // GET: return 204 immediately (no long-lived SSE in Workers)
+      if (request.method === "GET") {
+        return new Response(null, { status: 204 });
+      }
+
+      // DELETE: acknowledge session close
+      if (request.method === "DELETE") {
+        return new Response(null, { status: 204 });
+      }
+
+      // Only POST carries JSON-RPC messages
+      if (request.method !== "POST") {
+        return new Response("Method Not Allowed", {
+          status: 405,
+          headers: { Allow: "GET, POST, DELETE" },
+        });
+      }
 
       const server = createServer(env);
       const handler = createMcpHandler(server);
 
-      // Rewrite URL so handler sees /mcp at root
+      // Rewrite URL so handler sees /mcp
       const mcpUrl = new URL(request.url);
       mcpUrl.pathname = "/mcp";
       const mcpRequest = new Request(mcpUrl.toString(), {
