@@ -111,24 +111,30 @@
 |------|--------|--------|
 | GitHub SSH key on VM | ❌ | Using SCP workaround. GITHUB_PAT stored but no SSH key. |
 
-## Phase 5 — Orchestration Wiring ❌ Not Started
+## Phase 5 — Orchestration Wiring ✅
 
-### Code That Exists (ready to wire)
-- vault-mcp/src/tools/execute.ts (78 lines) — proxies to executor, no lifecycle
-- vault-mcp/src/tools/workflow.ts (320 lines) — full CRUD with circuit breaker checks
-- vault-mcp/src/logic/circuit-breaker.ts (69 lines) — D1 queries, $20/day halt, $80/mo alert
-- vault-mcp/src/logic/chooser.ts (153 lines) — model recommendation
-- vault-mcp/src/logic/consensus.ts (82 lines) — diff logic
-- executor/src/compress.js (280 lines) — Mermaid compression, 4 verbosity levels
-- executor/src/consensus.js (~80 lines) — 2-way diff
-- executor/src/entrypoint.js (613 lines) — HTTP server, auth, queue, CLI dispatch
+| Item | Status | Detail | Date |
+|------|--------|--------|------|
+| 5.1 execute.ts → D1 workflow lifecycle | ✅ | createTask + writeStage in workflow-db.ts, cost estimation, task_id passthrough | 2026-02-28 |
+| 5.2 End-to-end validation | ✅ | MCP tools/call → vault-mcp → executor → Claude CLI → D1 (task+stage+circuit_breaker) | 2026-02-28 |
+| 5.3 Circuit breaker verification | ✅ | daily + monthly cost accumulation in circuit_breaker table confirmed | 2026-02-28 |
+| 5.4 Mermaid compression passthrough | ✅ | mermaid field returned in MCP response, graph LR format | 2026-02-28 |
+| 5.5 Stale DO cleanup | ✅ | env.ts clean, wrangler.toml migration history preserved (required by CF) | 2026-02-28 |
 
-### What's Missing
-- execute.ts doesn't call workflow init/write/close (the wiring gap)
-- No end-to-end test has been run
-- Circuit breaker increment not called after execution
-- env.ts still references VAULT_MCP DurableObjectNamespace (stale)
-- wrangler.toml may have stale DO migration
+### Key Commits
+- 35f801d: Wire execute.ts into workflow lifecycle (createTask, writeStage, cost estimation)
+- f85b71d: Fix task_id passthrough from D1 to executor proxy
+
+### Bugs Fixed During Phase 5
+- Claude CLI --strict-mcp-config causes silent exit with no API call (CLI bug, workaround: removed flag)
+- Executor entrypoint.js: duplicate codex case with misplaced return statement
+- Executor entrypoint.js: gemini args malformed (--output-format missing value)
+- execute.ts: task_id not forwarded to executor (400 validation error)
+
+### Files Created/Modified
+- vault-mcp/src/logic/workflow-db.ts (new) — createTask + writeStage exports
+- vault-mcp/src/tools/execute.ts — D1 lifecycle wiring, cost estimation, model inference
+- executor/src/entrypoint.js — removed --strict-mcp-config, fixed gemini args, removed duplicate case
 
 ## Phase 6 — Portal Spike ❌ Not Started
 
@@ -149,7 +155,7 @@
 | mac-mcp | mac-mcp.deltaops.dev | ✅ v3.1.0, 11 tools | Secret path + Bearer |
 | executor | executor.deltaops.dev | ✅ healthy, 0 active jobs | x-auth-token |
 | KB site | oosman.github.io/Infrastructure | ✅ Zensical | Public |
-| D1 | vault-db (5a0c53ff) | ✅ 8 tables, 0 rows | Via vault-mcp |
+| D1 | vault-db (5a0c53ff) | ✅ 8 tables, data flowing | Via vault-mcp |
 | KV | TASKS_KV (0e01cc29) | ✅ | Via vault-mcp |
 
 ## Pending Actions (require Osama's hands)
