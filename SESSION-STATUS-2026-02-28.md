@@ -57,7 +57,7 @@
 - [ ] minio launchd plist still loaded
 - [ ] CF_ACCESS_CLIENT_ID/SECRET in Keychain are now stale — remove
 - [ ] Dotfiles has uncommitted bootstrap work
-- [ ] AWS CLI auth still broken
+- [x] AWS CLI auth fixed (oosman-cli, account 454518197708)
 
 ## Connection Map
 | Path | Route | Purpose |

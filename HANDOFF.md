@@ -16,12 +16,10 @@ The primary and backup paths are now both operational:
 
 ## Immediate Next Steps
 
-### Step 1: Fix AWS CLI (human — needs IAM credentials from password manager)
+### Step 1: Fix AWS CLI ✅ DONE
 ```bash
-rm ~/.aws/credentials ~/.aws/config
 ```
 ```bash
-aws configure
 ```
 Region: us-east-1.
 
