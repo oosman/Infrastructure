@@ -38,6 +38,15 @@ Bearer token in MCP config. Rotate quarterly: `npx wrangler secret put VAULT_AUT
 - KV: Workers KV (task storage)
 - Stateless Worker — no Durable Objects (all state in D1/KV)
 
+## Execute Tool Lifecycle
+
+The `execute` tool (Phase 5) wires executor calls to D1:
+- Creates a task record before execution
+- Logs stage results (success or error) after execution
+- Tracks cost per-task and per-stage
+- Feeds circuit breaker daily/monthly accumulators
+- Returns mermaid-compressed output + task_id for traceability
+
 ## Status
 
-Deployed v2.0.0. Stateless Worker with Streamable HTTP transport. 10 MCP tools, D1 (8 tables: tasks, stages, circuit_breaker, model_stats, checkpoints, decisions, transcripts, _cf_KV), KV (tasks). All migrations applied.
+Deployed v2.0.0. Stateless Worker with Streamable HTTP transport. 10 MCP tools, D1 (8 tables, data flowing — tasks, stages, circuit_breaker accumulating), KV (tasks). Execute tool wired to full D1 lifecycle (Phase 5 complete).

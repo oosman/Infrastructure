@@ -75,6 +75,16 @@ tags: [risks, operations, reliability]
 
 **Residual:** Closed. Defense in depth makes single-layer compromise insufficient.
 
+## Claude CLI --strict-mcp-config Bug
+
+**Risk:** Claude Code CLI v2.1.55-2.1.63 silently exits with no API call when `--strict-mcp-config` is passed with `--mcp-config "{}"`. The CLI starts, resolves auth, but never sends a request to the API.
+
+**Mitigation:** Removed `--strict-mcp-config` from executor spawn args. CLI loads account MCP servers (~2s overhead) then proceeds normally.
+
+**Residual:** Minor latency overhead from MCP server loading. If a future CLI update fixes this, the flag can be re-added to skip MCP loading.
+
+**Status:** Mitigated. See [ADR-0029](decisions/0029-cli-strict-mcp-workaround.md).
+
 ## Mac MCP — Zero Auth Window (Closed)
 
 **Risk:** Mac MCP ran with no authentication briefly during initial setup.

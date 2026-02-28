@@ -50,6 +50,21 @@ Claude.ai (Opus 4.6 orchestrator, 200K context)
 └──────────────────────┘    └──────────────────────────────────┘
 ```
 
+## Data Flow (Execute Path)
+
+```
+vault-mcp execute tool
+  → D1: create task (ULID)
+  → executor.deltaops.dev/execute (proxy)
+    → Claude/Codex/Gemini CLI on VM
+    → Mermaid-compressed response
+  → D1: log stage (tokens, cost, latency)
+  → D1: increment circuit_breaker (daily/monthly)
+  → Return: task_id + mermaid + metrics
+```
+
+D1 tables with live data: tasks (8), stages (8), circuit_breaker (daily + monthly).
+
 ## Auth Model
 
 Auth varies by connection type:

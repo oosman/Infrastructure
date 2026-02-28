@@ -40,6 +40,19 @@ Path 2 (VM):
     → vault-mcp records workflow state to D1
 ```
 
+## Execute Tool Lifecycle (Phase 5)
+
+When the `execute` MCP tool is called:
+
+1. **Circuit breaker check** — query D1 `circuit_breaker` table ($20/day halt, $80/month alert)
+2. **Create task** — insert into D1 `tasks` table, get ULID task_id
+3. **Proxy to executor** — forward instruction + task_id to executor.deltaops.dev
+4. **Log stage** — insert into D1 `stages` table (model, tokens, cost, latency)
+5. **Increment circuit breaker** — update daily/monthly cost accumulators
+6. **Return** — task_id, mermaid diagram, metrics, stage info
+
+Cost estimation uses per-executor rates: Claude ($3/$15 per MTok), Codex ($2.5/$10), Gemini ($1.25/$5).
+
 ## Current Focus
 
 The active work stream is building the infrastructure itself — the system that will later orchestrate builds and other projects. This is organized into phases:
@@ -51,7 +64,7 @@ The active work stream is building the infrastructure itself — the system that
 | 2 | SSE Reliability & Mac Hardening (keepalive, watchdog, logs) | ✅ Complete |
 | 3 | vault-mcp v2 (Streamable HTTP, 10 tools, D1+KV) | ✅ Complete |
 | 4 | Executor Hardening (systemd, memory/CPU limits, dedicated user) | ✅ Complete |
-| 5 | Orchestration Wiring (execute→workflow lifecycle, circuit breakers) | 🔄 Next |
+| 5 | Orchestration Wiring (execute→D1 lifecycle, circuit breakers, mermaid) | ✅ Complete |
 | 6 | Portal Spike (MCP Server Portal evaluation) | 🔄 Next |
 | 7 | AI Gateway (classification routing, cost analytics) | Planned |
 | 8 | Context Continuity (compaction, session handoff) | Planned |

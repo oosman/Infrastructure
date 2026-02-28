@@ -68,6 +68,8 @@ Claude.ai (Opus) → execute tool (vault-mcp) → POST executor.deltaops.dev/exe
                                               Mermaid-compressed result → D1 logged
 ```
 
+The execute tool (Phase 5) wires each call to D1: creates a task before execution, logs a stage after, estimates cost per executor, and increments circuit breaker accumulators. Task_id flows through to the executor for traceability.
+
 Available executors: claude (CC 2.1.63, Max OAuth), codex (0.104.0, ChatGPT), gemini (0.29.7, Ultra), consensus (2-way diff).
 
 

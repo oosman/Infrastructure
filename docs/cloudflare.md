@@ -38,6 +38,6 @@ deltaops.dev — managed via Cloudflare DNS.
 
 ## Resources
 
-- D1 database: vault-db (5a0c53ff-963c-48f9-b68d-f13536104aa1) — 8 tables
+- D1 database: vault-db (5a0c53ff-963c-48f9-b68d-f13536104aa1) — 8 tables, data flowing (tasks, stages, circuit_breaker accumulating)
 - Workers KV: TASKS_KV (0e01cc2910764d66a3cf8910f8e25eff) — human task storage
 - Account ID: 3d18a8bf1d47b952ec66dc00b76f38cd
