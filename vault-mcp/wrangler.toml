@@ -22,4 +22,8 @@ bindings = [
 
 [[migrations]]
 tag = "v1"
-new_sqlite_classes = ["VaultMcpAgent"]
+new_classes = ["McpAgent"]
+
+[[migrations]]
+tag = "v2"
+renamed_classes = [{ from = "McpAgent", to = "VaultMcpAgent" }]
