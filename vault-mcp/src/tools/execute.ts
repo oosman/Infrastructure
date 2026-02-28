@@ -4,6 +4,7 @@ import type { Env } from "../env";
 import { mcpText, mcpError, EXECUTOR_DEFAULT_URL } from "../utils";
 import { getCircuitBreakerState } from "../logic/circuit-breaker";
 import { createTask, writeStage } from "../logic/workflow-db";
+import { shouldEscalate, getNextRung, MODEL_LADDER, MAX_ATTEMPTS, MAX_TOTAL_ATTEMPTS } from "../logic/escalation";
 
 // ============================================================
 // Cost estimation
@@ -48,6 +49,7 @@ async function proxyToExecutor(env: Env, params: {
   stack?: string;
   verbosity?: string;
   task_id?: string;
+  max_attempts?: number;
 }) {
   const url = env.EXECUTOR_URL ?? EXECUTOR_DEFAULT_URL;
 
@@ -100,6 +102,7 @@ export function registerExecuteTool(server: McpServer, env: Env) {
       language: z.string().optional().describe("Primary language"),
       stack: z.string().optional().describe("Tech stack"),
       verbosity: z.string().optional().describe("Output verbosity"),
+      max_attempts: z.number().optional().describe("Max sequential attempts before consensus (default 3)"),
     },
     async (params) => {
       const startTime = Date.now();
@@ -126,55 +129,132 @@ export function registerExecuteTool(server: McpServer, env: Env) {
 
         const taskId = task.id;
 
-        // 3. Proxy to executor (existing logic)
-        const result = await proxyToExecutor(env, { ...params, task_id: taskId });
-        const latencyMs = Date.now() - startTime;
+        // 3. Escalation retry loop
+        const maxAttempts = params.max_attempts ?? MAX_ATTEMPTS;
+        let currentExecutor: string = params.executor ?? "claude";
+        let currentModel: string = params.model ?? inferDefaultModel(currentExecutor);
+        const attempts: Array<{ executor: string; model: string; stage_type: string; error?: string; latency_ms: number }> = [];
 
-        // 4. Check for executor error
-        if ("error" in result && typeof result.error === "string") {
+        for (let attempt = 1; attempt <= MAX_TOTAL_ATTEMPTS; attempt++) {
+          // Re-check circuit breaker before retry attempts
+          if (attempt > 1) {
+            const cb2 = await getCircuitBreakerState(env.VAULT_DB);
+            if (cb2.halted) {
+              return mcpError(JSON.stringify({
+                error: "CIRCUIT_BREAKER_HALTED",
+                task_id: taskId,
+                attempts,
+              }));
+            }
+          }
+
+          const attemptStart = Date.now();
+          const result = await proxyToExecutor(env, {
+            ...params,
+            executor: currentExecutor,
+            model: currentModel,
+            task_id: taskId,
+          });
+          const attemptLatency = Date.now() - attemptStart;
+
+          if ("error" in result && typeof result.error === "string") {
+            // Log error stage
+            const metrics = result.metrics as Record<string, unknown> | undefined;
+            const errorType = (result.error_type as string) ?? "unknown";
+
+            await writeStage(env.VAULT_DB, taskId, {
+              stage_name: `impl-${currentExecutor}-attempt-${attempt}`,
+              stage_type: "error",
+              model: currentModel,
+              output: result as Record<string, unknown>,
+              tokens_input: (metrics?.input_tokens as number) ?? 0,
+              tokens_output: (metrics?.output_tokens as number) ?? 0,
+              cost_usd: estimateCost(metrics, currentExecutor),
+              latency_ms: attemptLatency,
+            });
+
+            attempts.push({ executor: currentExecutor, model: currentModel, stage_type: "error", error: errorType, latency_ms: attemptLatency });
+
+            // Should we escalate?
+            if (!shouldEscalate(errorType)) {
+              return mcpError(JSON.stringify({
+                error: result.error,
+                error_type: errorType,
+                task_id: taskId,
+                attempts,
+                escalation: "not_escalatable",
+              }));
+            }
+
+            // Have we exhausted sequential attempts?
+            if (attempt >= maxAttempts) {
+              // Try consensus if not already
+              if (currentExecutor !== "consensus") {
+                const consensusRung = MODEL_LADDER.find(r => r.executor === "consensus");
+                if (consensusRung) {
+                  currentExecutor = "consensus";
+                  currentModel = "consensus";
+                  continue;
+                }
+              }
+
+              // All options exhausted → flag for human
+              return mcpError(JSON.stringify({
+                error: "ESCALATION_EXHAUSTED",
+                task_id: taskId,
+                attempts,
+                escalation: "human_required",
+                message: `Failed after ${attempt} attempts. Flagging for human review.`,
+              }));
+            }
+
+            // Get next rung in ladder
+            const nextRung = getNextRung(currentExecutor, currentModel);
+            if (!nextRung) {
+              return mcpError(JSON.stringify({
+                error: "ESCALATION_EXHAUSTED",
+                task_id: taskId,
+                attempts,
+                escalation: "ladder_exhausted",
+              }));
+            }
+
+            currentExecutor = nextRung.executor;
+            currentModel = nextRung.model;
+            continue;
+          }
+
+          // SUCCESS — log stage and return
           const metrics = result.metrics as Record<string, unknown> | undefined;
-          const model = params.model ?? inferDefaultModel(params.executor);
-
-          await writeStage(env.VAULT_DB, taskId, {
-            stage_name: `impl-${params.executor ?? "claude"}`,
-            stage_type: "error",
-            model,
+          const stageResult = await writeStage(env.VAULT_DB, taskId, {
+            stage_name: `impl-${currentExecutor}-attempt-${attempt}`,
+            stage_type: "impl",
+            model: currentModel,
             output: result as Record<string, unknown>,
             tokens_input: (metrics?.input_tokens as number) ?? 0,
             tokens_output: (metrics?.output_tokens as number) ?? 0,
-            cost_usd: estimateCost(metrics, params.executor),
-            latency_ms: latencyMs,
+            cost_usd: estimateCost(metrics, currentExecutor),
+            latency_ms: attemptLatency,
           });
 
-          return mcpError(JSON.stringify({
-            error: result.error,
-            error_type: result.error_type ?? "executor_error",
+          attempts.push({ executor: currentExecutor, model: currentModel, stage_type: "impl", latency_ms: attemptLatency });
+
+          return mcpText({
             task_id: taskId,
-          }));
+            mermaid: result.mermaid ?? null,
+            metrics: result.metrics ?? null,
+            stage: stageResult,
+            attempts,
+            escalated: attempt > 1,
+          });
         }
 
-        // 5. Log success stage to D1
-        const metrics = result.metrics as Record<string, unknown> | undefined;
-        const model = params.model ?? inferDefaultModel(params.executor);
-
-        const stageResult = await writeStage(env.VAULT_DB, taskId, {
-          stage_name: `impl-${params.executor ?? "claude"}`,
-          stage_type: "impl",
-          model,
-          output: result as Record<string, unknown>,
-          tokens_input: (metrics?.input_tokens as number) ?? 0,
-          tokens_output: (metrics?.output_tokens as number) ?? 0,
-          cost_usd: estimateCost(metrics, params.executor),
-          latency_ms: latencyMs,
-        });
-
-        // 6. Return task_id + executor result
-        return mcpText({
+        // Safety fallback — should never reach here
+        return mcpError(JSON.stringify({
+          error: "MAX_ATTEMPTS_EXCEEDED",
           task_id: taskId,
-          mermaid: result.mermaid ?? null,
-          metrics: result.metrics ?? null,
-          stage: stageResult,
-        });
+          attempts,
+        }));
       } catch (err) {
         return mcpError(`execute failed: ${err instanceof Error ? err.message : String(err)}`);
       }
