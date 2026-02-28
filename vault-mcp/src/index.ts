@@ -56,7 +56,7 @@ export default {
         headers: {
           "Access-Control-Allow-Origin": "*",
           "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-          "Access-Control-Allow-Headers": "Authorization, Content-Type",
+          "Access-Control-Allow-Headers": "Authorization, Content-Type, Upgrade",
           "Access-Control-Max-Age": "86400",
         },
       });
@@ -67,54 +67,58 @@ export default {
       return json({ status: "ok", version: "2.0.0", timestamp: now() });
     }
 
+    // SSE deprecated — Agents SDK uses Streamable HTTP (WebSocket)
+    if (url.pathname === "/sse") {
+      return json({
+        error: "SSE transport deprecated in v2. Use /mcp with Streamable HTTP (WebSocket).",
+        docs: "https://modelcontextprotocol.io/docs/concepts/transports#streamable-http"
+      }, 410);
+    }
+
     // GitHub webhook — own HMAC auth
     if (url.pathname.startsWith("/github/")) {
       return handleGitHubWebhook(request, env);
     }
 
-    // MCP transport — Bearer auth + route to DO
-    if (url.pathname === "/mcp" || url.pathname === "/sse") {
+    // MCP transport — Bearer auth + route to Durable Object
+    if (url.pathname === "/mcp") {
       if (!verifyBearerAuth(request, env)) {
         return errorResponse("Unauthorized", 401);
       }
 
-      // Route to VaultMcpAgent Durable Object
-      // Try the Agents SDK serve() pattern first
-      try {
-        return (VaultMcpAgent as any).serve("/mcp").fetch(request, env, ctx);
-      } catch {
-        // Fallback: manual DO routing
-        const id = env.VAULT_MCP.idFromName("singleton");
-        const stub = env.VAULT_MCP.get(id);
-        return stub.fetch(request);
-      }
+      // Route to VaultMcpAgent Durable Object via Agents SDK
+      return (VaultMcpAgent as any).serve("/mcp").fetch(request, env, ctx);
     }
 
-    // REST API — Bearer auth required for everything below
+    // === All remaining routes require Bearer auth ===
     if (!verifyBearerAuth(request, env)) {
       return errorResponse("Unauthorized", 401);
     }
 
-    const waitUntil = (p: Promise<unknown>) => ctx.waitUntil(p);
+    const waitUntil = (p: Promise<any>) => ctx.waitUntil(p);
 
-    // Route dispatch
+    // REST: Workflow routes
     if (url.pathname.startsWith("/workflow")) {
-      return handleWorkflowRoutes(request, env);
+      const res = await handleWorkflowRoutes(request, env);
+      if (res) return res;
     }
 
+    // REST: Task routes
     if (url.pathname.startsWith("/tasks")) {
-      return handleTaskRoutes(request, env, waitUntil);
+      const res = await handleTaskRoutes(request, env, url.pathname, waitUntil);
+      if (res) return res;
     }
 
-    if (url.pathname === "/search") {
+    // REST: Transcript search & ingest
+    if (url.pathname === "/search" && request.method === "GET") {
       return handleTranscriptSearch(request, env);
     }
-
-    if (url.pathname === "/transcripts") {
+    if (url.pathname === "/transcripts" && request.method === "POST") {
       return handleTranscriptIngest(request, env);
     }
 
-    if (url.pathname === "/execute") {
+    // REST: Execute proxy
+    if (url.pathname === "/execute" && request.method === "POST") {
       return handleExecuteProxy(request, env);
     }
 
