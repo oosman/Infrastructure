@@ -106,11 +106,6 @@
 | VM SSH key renamed: lightsail-infra.pem | ✅ | | 2026-02-28 |
 | Decision: stay with tunnel (no Caddy) | ✅ | ADR-0027 | 2026-02-28 |
 
-### Phase 4 — NOT Done
-| Item | Status | Reason |
-|------|--------|--------|
-| GitHub SSH key on VM | ✅ | ed25519 key registered on GitHub as executor-vm |
-
 ## Phase 5 — Orchestration Wiring ✅
 
 | Item | Status | Detail | Date |

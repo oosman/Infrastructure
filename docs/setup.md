@@ -74,3 +74,7 @@ curl -sf http://127.0.0.1:20241/ready  # tunnel
 | Dotfiles | ~/Developer/dotfiles/ |
 | Archives | ~/Developer/archive/ |
 | Logs | ~/logs/ |
+
+## VM (executor.deltaops.dev)
+
+Git uses SSH by default (`git config --global url.git@github.com:.insteadOf https://github.com/`). Key registered as `executor-vm` on GitHub. PAT retained for GitHub API calls via vault-mcp.
