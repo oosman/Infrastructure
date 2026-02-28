@@ -1,4 +1,4 @@
-> **Read COMPLETION.md first** — it is the canonical record of what's done.
+> **Read docs/completion.md first** — it is the canonical record of what's done.
 
 # Phase 6 — MCP Server Portal Spike (30 min)
 
@@ -9,145 +9,149 @@ Research confirmed: Portal uses OAuth (Claude.ai supports it), server URLs store
 
 ## KNOWN BLOCKERS — Read Before Starting
 
-### Blocker 1: CF_API_TOKEN lacks Zero Trust permissions
-The existing `CF_API_TOKEN` in Keychain is scoped to Workers/D1/KV only. It **cannot** create MCP servers or portals via API. The Zero Trust APIs require `Access: Apps and Policies Write` permission.
+### Blocker 1: Zero Trust API requires Global API Key
+The `/access/ai_controls/mcp/servers` endpoint **categorically blocks API tokens** regardless of permissions. This is a Cloudflare platform limitation. You need either:
 
-**This requires Osama to do ONE of:**
-- Option A: Update existing CF_API_TOKEN in CF dashboard → API Tokens → edit → add `Access: Apps and Policies Write`
-- Option B: Create new `CF_ZT_API_TOKEN` with Zero Trust permissions, store in Keychain:
-  ```
-  security add-generic-password -a osman -s CF_ZT_API_TOKEN -w "<new-token>" -U
-  ```
+**Option A — Dashboard (fastest):** Osama creates servers + portal manually in CF One dashboard. You handle vault-mcp auth fix, testing, ADR.
 
-**If Osama has not done this yet, ask him which option he prefers and wait. Do not attempt Zero Trust API calls with the current token — they will 403.**
+**Option B — Global API Key (programmatic):** Check Keychain first:
+```bash
+CF_EMAIL=$(security find-generic-password -a "osman" -s "CF_EMAIL" -w 2>/dev/null)
+CF_GLOBAL_KEY=$(security find-generic-password -a "osman" -s "CF_GLOBAL_API_KEY" -w 2>/dev/null)
+```
+If missing, Osama must store them:
+```bash
+# CF dashboard → My Profile → API Tokens → Global API Key → View
+security add-generic-password -a osman -s CF_GLOBAL_API_KEY -w "<key>" -U
+security add-generic-password -a osman -s CF_EMAIL -w "<email>" -U
+```
+Then use `X-Auth-Email` + `X-Auth-Key` headers instead of Bearer:
+```bash
+curl -X POST "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/ai_controls/mcp/servers" \
+  -H "X-Auth-Email: $CF_EMAIL" \
+  -H "X-Auth-Key: $CF_GLOBAL_KEY" \
+  -H "Content-Type: application/json" \
+  -d '...'
+```
+
+**If neither option is ready, ask Osama which he prefers and wait. Do not attempt API calls with CF_API_TOKEN — they will fail.**
 
 ### Blocker 2: vault-mcp /mcp requires Bearer auth
-vault-mcp returns 401 on `/mcp` without Authorization header. When the Portal tries to sync tools (calls `tools/list`), it won't be able to authenticate.
+vault-mcp returns 401 on `/mcp` without Authorization header. When Portal syncs tools (calls `tools/list`), it can't authenticate.
 
 **Tested:**
 ```
 No auth:   POST https://vault.deltaops.dev/mcp → 401
-With auth: POST https://vault.deltaops.dev/mcp + "Authorization: Bearer {VAULT_AUTH_TOKEN}" → 200
+With auth: POST https://vault.deltaops.dev/mcp + Bearer → 200
 ```
 
-**Fixes (pick one during spike):**
-- Option A (quick): Make `initialize` and `tools/list` methods bypass auth in vault-mcp. Keep all tool execution authed. Edit `vault-mcp/src/index.ts`, deploy with `cd ~/Developer/infrastructure/vault-mcp && npx wrangler deploy`.
-- Option B (better): Add secret path segment to vault-mcp like mac-mcp uses. Register vault-mcp in Portal with URL `https://vault.deltaops.dev/{VAULT_AUTH_TOKEN}/mcp`. Requires code change to vault-mcp to accept path-based auth.
+**Fixes (pick one):**
+- Option A (quick): Allow `initialize` and `tools/list` methods through without auth in vault-mcp index.ts. Keep `tools/call` authed. Deploy: `cd ~/Developer/infrastructure/vault-mcp && npx wrangler deploy`.
+- Option B (better): Add secret path to vault-mcp (like mac-mcp). Register in Portal with `https://vault.deltaops.dev/{VAULT_AUTH_TOKEN}/mcp`.
 
 ## Infrastructure Details
 
-### Secrets (all in macOS Keychain, account "osman")
+### Secrets (macOS Keychain, account "osman")
 ```bash
-# Read any secret:
 security find-generic-password -a "osman" -s "SECRET_NAME" -w
 ```
-| Key | Chars | Purpose |
-|-----|-------|---------|
-| CF_API_TOKEN | 40 | Cloudflare API (Workers/D1/KV only — NO Zero Trust) |
-| VAULT_AUTH_TOKEN | 64 | Bearer token for vault-mcp |
-| MAC_MCP_AUTH_TOKEN | 64 | This IS the secret path segment for mac-mcp |
-| EXECUTOR_SECRET | 64 | x-auth-token for executor (not needed for Portal) |
+| Key | Purpose |
+|-----|---------|
+| CF_API_TOKEN | Cloudflare Workers/D1/KV (**NOT Zero Trust**) |
+| CF_GLOBAL_API_KEY | Global API key (**may not exist yet**) |
+| CF_EMAIL | CF account email (**may not exist yet**) |
+| VAULT_AUTH_TOKEN | Bearer for vault-mcp (64 chars) |
+| MAC_MCP_AUTH_TOKEN | Secret path segment for mac-mcp (64 chars) |
+| EXECUTOR_SECRET | x-auth-token for executor (not needed here) |
 
 ### Endpoints
-| Server | URL | Auth | Transport |
-|--------|-----|------|-----------|
-| vault-mcp | `https://vault.deltaops.dev/mcp` | Bearer header | Streamable HTTP |
-| mac-mcp | `https://mac-mcp.deltaops.dev/{MAC_MCP_AUTH_TOKEN}/mcp` | Secret in URL path | Streamable HTTP |
+| Server | URL | Auth |
+|--------|-----|------|
+| vault-mcp | `https://vault.deltaops.dev/mcp` | Bearer header |
+| mac-mcp | `https://mac-mcp.deltaops.dev/{MAC_MCP_AUTH_TOKEN}/mcp` | Secret in URL |
 
 ### Account
 - CF Account ID: `3d18a8bf1d47b952ec66dc00b76f38cd`
-- Domain: `deltaops.dev` (active zone in Cloudflare)
+- Domain: `deltaops.dev`
 
 ## Steps
 
 ### 1. Verify Prerequisites (2 min)
-- Check if Osama has updated/created Zero Trust API token
-- If not, ask and wait — this is a hard blocker
+Check if Global API key or dashboard access is available. If not, ask and wait.
 
 ### 2. Fix vault-mcp Auth for Portal Sync (5 min)
-Pick Option A or B from Blocker 2 above. Recommend Option A (quickest):
-
-In `~/Developer/infrastructure/vault-mcp/src/index.ts`, find the auth check for /mcp POST requests. Allow `initialize` and `tools/list` methods through without Bearer token. All other methods (tools/call etc.) still require auth.
-
+Recommend Option A: Allow `initialize` and `tools/list` without Bearer.
 ```bash
 cd ~/Developer/infrastructure/vault-mcp && npx wrangler deploy
-# Verify: curl -sf -X POST https://vault.deltaops.dev/mcp -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","method":"tools/list","id":1}' → should return 200 with tools
+# Verify:
+curl -sf -X POST https://vault.deltaops.dev/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'
+# Should return 200 with tools list
 ```
 
-### 3. Create MCP Servers via API (5 min)
+### 3. Create MCP Servers + Portal (10 min)
+
+**If programmatic (Global API Key):**
 ```bash
-CF_ZT_TOKEN=$(security find-generic-password -a "osman" -s "CF_ZT_API_TOKEN" -w 2>/dev/null || security find-generic-password -a "osman" -s "CF_API_TOKEN" -w)
-ACCOUNT_ID="3d18a8bf1d47b952ec66dc00b76f38cd"
+CF_EMAIL=$(security find-generic-password -a "osman" -s "CF_EMAIL" -w)
+CF_KEY=$(security find-generic-password -a "osman" -s "CF_GLOBAL_API_KEY" -w)
+ACCOUNT="3d18a8bf1d47b952ec66dc00b76f38cd"
 MAC_SECRET=$(security find-generic-password -a "osman" -s "MAC_MCP_AUTH_TOKEN" -w)
 
 # Create vault-mcp server
-curl -sf -X POST "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/ai_controls/mcp_servers" \
-  -H "Authorization: Bearer $CF_ZT_TOKEN" \
+curl -sf -X POST "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT/ai_controls/mcp/servers" \
+  -H "X-Auth-Email: $CF_EMAIL" -H "X-Auth-Key: $CF_KEY" \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "vault-mcp",
-    "http_url": "https://vault.deltaops.dev/mcp"
-  }'
+  -d '{"name":"vault-mcp","http_url":"https://vault.deltaops.dev/mcp"}'
 
-# Create mac-mcp server  
-curl -sf -X POST "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/ai_controls/mcp_servers" \
-  -H "Authorization: Bearer $CF_ZT_TOKEN" \
+# Create mac-mcp server
+curl -sf -X POST "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT/ai_controls/mcp/servers" \
+  -H "X-Auth-Email: $CF_EMAIL" -H "X-Auth-Key: $CF_KEY" \
   -H "Content-Type: application/json" \
-  -d "{
-    \"name\": \"mac-mcp\",
-    \"http_url\": \"https://mac-mcp.deltaops.dev/$MAC_SECRET/mcp\"
-  }"
+  -d "{\"name\":\"mac-mcp\",\"http_url\":\"https://mac-mcp.deltaops.dev/$MAC_SECRET/mcp\"}"
+
+# Create test portal
+curl -sf -X POST "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT/ai_controls/mcp/portals" \
+  -H "X-Auth-Email: $CF_EMAIL" -H "X-Auth-Key: $CF_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"DeltaOps Infrastructure","subdomain":"mcp-test","domain":"deltaops.dev"}'
 ```
 
-Note: API schema may differ — check response. If API doesn't work for this, fall back to CF One dashboard: Access controls → AI controls → MCP servers tab.
+**If dashboard:** Ask Osama to:
+1. CF One → Access controls → AI controls → MCP servers tab → Add vault-mcp + mac-mcp
+2. Add MCP server portal → `mcp-test.deltaops.dev` → attach both servers
+3. Require user auth → Disabled (server-side auth handles it)
+4. Access policy → Allow → his email
 
-### 4. Create Test Portal (5 min)
-```bash
-curl -sf -X POST "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/ai_controls/mcp_portals" \
-  -H "Authorization: Bearer $CF_ZT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "DeltaOps Infrastructure",
-    "subdomain": "mcp-test",
-    "domain": "deltaops.dev",
-    "servers": ["vault-mcp", "mac-mcp"]
-  }'
-```
-
-If API fails, use dashboard: AI controls → Add MCP server portal → domain `mcp-test.deltaops.dev`.
-
-### 5. Test from Claude.ai (10 min)
+### 4. Test from Claude.ai (10 min)
 Ask Osama to:
-1. Add MCP connector: URL `https://mcp-test.deltaops.dev/mcp`
+1. Add connector: `https://mcp-test.deltaops.dev/mcp`
 2. Complete OAuth popup
-3. Test vault-mcp: call `task list` or `health`
-4. Test mac-mcp: call `health_check` or `run_command` with `echo ok`
-5. Note latency vs direct connectors
+3. Test: `task list` (vault-mcp), `health_check` (mac-mcp), `run_command echo ok` (mac-mcp)
+4. Note latency vs direct connectors
 
-### 6. Decision & ADR (5 min)
+### 5. Decision & ADR (5 min)
 
 | Outcome | Action |
 |---------|--------|
-| Both work, no perceptible delay | **Adopt.** Production portal at `mcp.deltaops.dev`. |
-| Both work, noticeable delay | **Skip.** 3-endpoint model fine for now. |
-| One or both fail | **Skip.** Document why. |
+| Both work, no delay | Adopt at `mcp.deltaops.dev` |
+| Both work, noticeable delay | Skip, 3-endpoint fine |
+| One/both fail | Skip, document why |
 
-Write `docs/decisions/0029-portal-decision.md` using template from `docs/decisions/_adr-template.md`.
-Include: what was tested, auth findings, latency, decision.
-
+Write `docs/decisions/0029-portal-decision.md`. Update `docs/completion.md` with result.
 ```bash
-cd ~/Developer/infrastructure && git add -A && git commit -m "docs: ADR-0029 portal spike decision" && git push origin main
+cd ~/Developer/infrastructure && git add -A && git commit -m "docs: ADR-0029 portal spike decision" && git push
 ```
 
-### 7. Cleanup
-- If skipping: delete test portal and MCP server entries in CF dashboard
-- If adopting: create production portal at `mcp.deltaops.dev`, delete test, update Claude.ai connectors
+### 6. Cleanup
+- Skip → delete test portal + server entries
+- Adopt → create production portal at `mcp.deltaops.dev`, delete test
 
 ## Rules
 - 30-minute hard timebox
-- Don't modify mac-mcp code at all
-- Only modify vault-mcp auth if needed for Portal sync (minimal change)
-- Test on mcp-test.deltaops.dev first
+- Don't modify mac-mcp code
+- Only modify vault-mcp auth if needed (minimal)
 - Write ADR regardless of outcome
-- Independent of Phase 5 — don't touch execute/workflow/lifecycle code
-- Read secrets from Keychain, never ask Osama to paste them
+- Update docs/completion.md with results
+- Read secrets from Keychain, never ask to paste
