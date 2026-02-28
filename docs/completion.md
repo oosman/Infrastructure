@@ -136,13 +136,32 @@
 - vault-mcp/src/tools/execute.ts — D1 lifecycle wiring, cost estimation, model inference
 - executor/src/entrypoint.js — removed --strict-mcp-config, fixed gemini args, removed duplicate case
 
-## Phase 6 — Portal Spike ❌ Not Started
+## Phase 6 — Portal Spike ✅
 
-### Research Complete
-- Portal uses OAuth (Claude.ai compatible) ✅
-- Server URLs stored server-side (secret paths work) ✅
-- Known blocker: CF_API_TOKEN lacks Zero Trust permissions
-- Known blocker: vault-mcp /mcp requires Bearer (Portal can't pass it during sync)
+| Item | Status | Detail | Date |
+|------|--------|--------|------|
+| Global API Key stored in Keychain | ✅ | CF_GLOBAL_API_KEY, CF_EMAIL | 2026-02-28 |
+| vault-mcp auth relaxed for portal sync | ✅ | initialize + tools/list bypass Bearer | 2026-02-28 |
+| MCP servers created (dashboard) | ✅ | vault-mcp + mac-mcp, both status=ready | 2026-02-28 |
+| Portal created (dashboard) | ✅ | Infrastructure (id=infra) at mcp-test.deltaops.dev | 2026-02-28 |
+| Managed OAuth + DCR configured | ✅ | Claude.ai redirect URIs set | 2026-02-28 |
+| Server-level Access policies | ✅ | Both servers have Allow policy (dashboard-created) | 2026-02-28 |
+| Portal connected in Claude.ai | ✅ | 24 tools (10 vault + 11 mac + 3 portal) | 2026-02-28 |
+| Both servers verified via portal | ✅ | health_check (mac), health (vault) both OK | 2026-02-28 |
+| Decision: adopt portal | ✅ | ADR-0030 | 2026-02-28 |
+
+### Key Findings
+- **API-created servers don't generate backing Access apps** — must use dashboard
+- **Two-layer policy model:** portal app + individual server apps both need policies
+- **Managed OAuth DCR:** leave Advanced settings empty in Claude.ai (no manual Client ID)
+- **Portal adds 3 tools:** portal_list_servers, portal_toggle_servers, portal_toggle_single_server
+
+### Phase 6 — Pending
+| Item | Status | Reason |
+|------|--------|--------|
+| GitHub MCP server in portal | 🔄 | Dashboard creation needed (third-party OAuth) |
+| Production domain (mcp.deltaops.dev) | ❌ Deferred | Keeping mcp-test until portal proves stable |
+| Latency benchmarks | ❌ Deferred | Qualitative: no noticeable delay |
 
 ## Phase 7 — AI Gateway ❌ Not Started (deferred until Phase 5 traffic exists)
 ## Phase 8 — Context Continuity ❌ Not Started (deferred until Phase 5 data flows)
@@ -151,6 +170,7 @@
 
 | Component | URL | Status | Auth |
 |-----------|-----|--------|------|
+| **Portal** | mcp-test.deltaops.dev | ✅ 24 tools (vault+mac+portal) | CF Access OAuth (Managed) |
 | vault-mcp | vault.deltaops.dev | ✅ v2.0.0 | Bearer (REST+MCP), /health unauthenticated |
 | mac-mcp | mac-mcp.deltaops.dev | ✅ v3.1.0, 11 tools | Secret path + Bearer |
 | executor | executor.deltaops.dev | ✅ healthy, 0 active jobs | x-auth-token |
@@ -162,8 +182,7 @@
 
 | Item | Why manual |
 |------|-----------|
-| vault-mcp Claude.ai connector | Other session in progress |
-| CF_API_TOKEN: add Zero Trust permissions (for Phase 6) | CF dashboard token edit |
+| Add GitHub MCP server to portal (dashboard) | Third-party OAuth server, dashboard-only |
 | GitHub SSH key on VM | Key generation + authorization |
 
 ## Key Credentials
@@ -171,6 +190,8 @@
 | Secret | Keychain key | Purpose |
 |--------|-------------|---------|
 | Cloudflare API | CF_API_TOKEN | Workers/D1/KV (no Zero Trust) |
+| CF Global Key | CF_GLOBAL_API_KEY | Zero Trust / AI Controls API |
+| CF Email | CF_EMAIL | Paired with Global Key |
 | vault-mcp auth | VAULT_AUTH_TOKEN | Bearer for /mcp and REST |
 | mac-mcp secret | MAC_MCP_AUTH_TOKEN | URL path segment |
 | Executor auth | EXECUTOR_SECRET | x-auth-token header |
