@@ -1,82 +1,103 @@
-# Phase 6 — MCP Server Portal Spike Session Prompt
+# Phase 6 — MCP Server Portal Spike (30 min)
 
 ## Context
-Infrastructure phases 0-4 complete. Phase 5 (orchestration wiring) running in parallel. This is a **2-hour timeboxed spike** to evaluate Cloudflare's MCP Server Portal for consolidating 3 MCP endpoints into 1.
+Phases 0-4 complete. Phase 5 running in parallel. This is a **30-minute spike** to test Cloudflare's MCP Server Portal for consolidating MCP endpoints into one URL.
 
-## Critical Discovery Since Plan Was Written
-Claude.ai MCP connectors **cannot send custom headers** (no Bearer, no CF-Access-Jwt-Assertion). Our auth model uses:
-- Claude.ai → secret path segment (URL-based auth)
-- CC/scripts → Bearer token or x-auth-token header
+## Research Findings (already done)
+- Portal uses **OAuth** for client auth — Claude.ai supports this ✅
+- When adding servers to Portal, you provide the **full HTTP URL** — secret path segments work ✅
+- Portal stores server URLs server-side — secrets never exposed to MCP client ✅
+- Portal supports both OAuth-authed and unauthenticated upstream servers ✅
+- Portal syncs tools by calling `tools/list` on the server URL you provide
 
-The original plan assumed CF Access headers for the Portal. This may make the Portal incompatible with our setup. **The primary goal of this spike is to determine if that's true.**
+## Our Servers
+| Server | Portal URL to use | Auth model |
+|--------|-------------------|------------|
+| vault-mcp | `https://vault.deltaops.dev/mcp` | Bearer token — Portal needs to auth somehow |
+| mac-mcp | `https://mac-mcp.deltaops.dev/{SECRET}/mcp` | Secret in URL — Portal stores it server-side ✅ |
 
-## Current Endpoints
-| Endpoint | Auth (Claude.ai) | Auth (CC/scripts) | Transport |
-|----------|-------------------|--------------------|-----------| 
-| vault.deltaops.dev/mcp | Bearer (Claude.ai connector handles this) | Bearer header | Streamable HTTP |
-| mac-mcp.deltaops.dev/{secret}/mcp | Secret path segment | Bearer header | Streamable HTTP |
-| executor.deltaops.dev | N/A (not MCP — REST only, called by vault-mcp) | x-auth-token | REST HTTP |
+**Known risk:** vault-mcp `/mcp` requires Bearer auth. When Portal tries to sync tools, it may fail because it can't pass a Bearer token. Two fixes if this happens:
+- Option A: Make vault-mcp's `tools/list` method unauthenticated (keep tool execution authed via session)
+- Option B: Add the VAULT_AUTH_TOKEN as a query param or path segment (like mac-mcp pattern)
 
-Note: executor is NOT an MCP server. Only vault-mcp and mac-mcp are MCP endpoints.
+Read the MAC_MCP_AUTH_TOKEN secret path from the Mac MCP connector URL in Claude.ai settings (it's the path segment before /mcp).
 
-## Spike Tasks
+## Steps
 
-### 6.1 — Research Portal Auth Model (30 min)
-Search Cloudflare docs for MCP Server Portal:
-1. Does the Portal support URL-based auth (secret path segments)?
-2. Does the Portal require CF Access headers from the client?
-3. Can the Portal proxy to servers behind CF Tunnel (mac-mcp)?
-4. Does the Portal work with non-Worker MCP servers?
-5. What auth does the Portal add between itself and upstream servers?
+### 1. Add MCP Servers to Cloudflare (5 min)
+1. Go to Cloudflare One → Access controls → AI controls → MCP servers tab
+2. Add vault-mcp:
+   - Name: `vault-mcp`
+   - HTTP URL: `https://vault.deltaops.dev/mcp`
+   - Add an Allow policy (e.g., email = your email)
+   - Save and connect — if it prompts for OAuth, that means vault-mcp needs OAuth support (go to step 1b)
+   - If it just validates and shows tools → great, move on
+3. Add mac-mcp:
+   - Name: `mac-mcp`  
+   - HTTP URL: `https://mac-mcp.deltaops.dev/{SECRET_PATH}/mcp` (use the actual secret segment)
+   - Add an Allow policy
+   - Save and connect
 
-Key question: If Claude.ai connects to the Portal, and the Portal proxies to mac-mcp, how does mac-mcp auth work? The Portal would need to either:
-- Forward the secret path segment (unlikely — Portal probably normalizes URLs)
-- Add its own auth header to upstream requests (possible)
-- Use some other mechanism
+**If vault-mcp fails to connect** (likely — Bearer auth blocks tool sync):
+- Option A (quick): Temporarily allow unauthenticated `tools/list` on vault-mcp. Edit vault-mcp index.ts to skip auth for `method: "tools/list"` only. Deploy with `cd ~/Developer/infrastructure/vault-mcp && npx wrangler deploy`. Re-test.
+- Option B (better): Add vault-mcp's Bearer token as a path segment like mac-mcp. Change vault-mcp to accept `/mcp/{token}` in addition to Bearer header. Deploy. Use the token URL in Portal config.
 
-### 6.2 — Test vault-mcp Through Portal (30 min)
-vault-mcp is a CF Worker — this is the happy path:
-1. Create test portal at mcp-test.deltaops.dev (CF dashboard)
-2. Add vault-mcp as a server
-3. Connect from Claude.ai
-4. Test: are all 10 tools visible? Can you call task(action: "list")?
-5. Measure latency vs direct connection
+### 2. Create Portal (5 min)
+1. Cloudflare One → Access controls → AI controls → Add MCP server portal
+2. Name: `DeltaOps Infrastructure`
+3. Custom domain: `mcp-test.deltaops.dev` (test subdomain first)
+4. Add both servers (vault-mcp + mac-mcp)
+5. For each server: "Require user auth" → Disabled (we use server-side auth, not per-user OAuth)
+6. Add Access policy: Allow → email = your email
+7. Save
 
-### 6.3 — Test mac-mcp Through Portal (30 min)
-mac-mcp is behind CF Tunnel — this is the risky path:
-1. Add mac-mcp to the portal
-2. Test: does portal discover mac-mcp's 11 tools?
-3. Does auth work? (mac-mcp expects secret path segment)
-4. If auth fails, is there a Portal-side mechanism to inject auth?
+### 3. Test from Claude.ai (10 min)
+1. Go to Claude.ai Settings → Connectors
+2. Add new MCP connector with URL: `https://mcp-test.deltaops.dev/mcp`
+3. It should trigger OAuth popup → log in → see both servers
+4. Test:
+   - Are all 10 vault-mcp tools visible?
+   - Are all 11 mac-mcp tools visible?
+   - Run: `task list` (vault-mcp) — does it return data?
+   - Run: `health_check` (mac-mcp) — does it return health?
+   - Run: `echo ok` via run_command (mac-mcp) — does it execute?
 
-### 6.4 — Decision (30 min)
+### 4. Measure Latency (5 min)
+Compare in conversation:
+- Direct vault-mcp tool call vs portal vault-mcp tool call
+- Direct mac-mcp tool call vs portal mac-mcp tool call
+- Note any perceptible delay
+
+### 5. Decision (5 min)
+
 | Outcome | Action |
 |---------|--------|
-| Both work, <200ms overhead | Adopt Portal, move to mcp.deltaops.dev |
-| vault-mcp works, mac-mcp doesn't | Partial or skip — not worth split model |
-| Latency >200ms overhead | Skip — stay 3-endpoint |
-| Auth incompatible | Skip — write ADR-0029, move on |
+| Both work, no perceptible delay | **Adopt.** Create production portal at `mcp.deltaops.dev`. Remove individual connectors. |
+| Both work, noticeable delay | **Skip.** Latency tax not worth it for solo operator. |
+| vault-mcp fails, mac-mcp works | **Partial.** Evaluate if vault-mcp fix is worth it. |
+| Neither works | **Skip.** Stay 3-endpoint. |
 
-Write ADR-0029 recording the decision regardless of outcome. Template in docs/decisions/_adr-template.md.
+### 6. If Adopting
+1. Create production portal at `mcp.deltaops.dev`
+2. Move servers from test to production portal
+3. Update Claude.ai: replace 2 individual connectors with single portal connector
+4. Delete test portal (`mcp-test.deltaops.dev`)
+5. Keep direct connector configs documented as fallback
 
-## Expected Outcome
-Given the auth constraints, **this spike will likely result in "Skip Portal"**. That's a valid outcome — the 3-endpoint model works fine for a solo operator. The ADR documenting why is the deliverable.
+### 7. Cleanup & ADR
+- Delete test portal if not adopting (or if moved to production)
+- Create ADR-0029 in `~/Developer/infrastructure/docs/decisions/0029-portal-decision.md`
+- Use template from `docs/decisions/_adr-template.md`
+- Include: what was tested, latency measurements, auth findings, decision, rationale
+- Commit and push
 
-## Validation Criteria
-- [ ] Spike completed within 2-hour timebox
-- [ ] Decision documented in ADR-0029 with latency measurements (if tested)
-- [ ] If adopting: portal accessible, all tools work
-- [ ] If skipping: 3-endpoint model confirmed, rationale documented
-- [ ] Commit and push ADR
-
-## Key Files
-- ~/Developer/infrastructure/docs/decisions/_adr-template.md (ADR format)
-- ~/Developer/infrastructure/docs/decisions/0009-portal-spike.md (original decision to spike)
-- CF Account ID: 3d18a8bf1d47b952ec66dc00b76f38cd
+## CF Account ID
+3d18a8bf1d47b952ec66dc00b76f38cd
 
 ## Rules
-- 2-hour hard timebox. If blocked at 90 min, write "Skip" ADR and stop.
-- Don't modify vault-mcp or mac-mcp code for this spike
-- Test on mcp-test.deltaops.dev, not production
-- Clean up test resources when done
+- 30-minute hard timebox
+- Don't modify mac-mcp code
+- Only modify vault-mcp if needed for auth compatibility (minimal change)
+- Test on mcp-test.deltaops.dev first, not production
+- Write ADR regardless of outcome
 - This is independent of Phase 5 — don't touch execute/workflow code
