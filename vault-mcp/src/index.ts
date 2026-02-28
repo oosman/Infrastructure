@@ -1,5 +1,5 @@
+import { createMcpHandler } from "agents/mcp";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 
 import type { Env } from "./env";
 import { json, errorResponse, verifyBearerAuth, now } from "./utils";
@@ -24,9 +24,9 @@ import { handleTranscriptSearch, handleTranscriptIngest } from "./routes/transcr
 import { handleExecuteProxy } from "./routes/execute-proxy";
 
 // ============================================================
-// Create MCP server with all tools registered
+// Create MCP server with all 10 tools
 // ============================================================
-function createMcpServer(env: Env): McpServer {
+function createServer(env: Env): McpServer {
   const server = new McpServer({ name: "vault-mcp", version: "2.0.0" });
   registerWorkflowTool(server, env);
   registerWorkflowQueryTool(server, env);
@@ -97,42 +97,14 @@ export default {
     const authenticated = pathAuth.authenticated || bearerAuth;
     if (pathAuth.authenticated) pathname = pathAuth.stripped;
 
-    // MCP Streamable HTTP — stateless, per-request
+    // MCP — createMcpHandler (Cloudflare Agents SDK, stateless)
     if (pathname === "/mcp") {
       if (!authenticated) return errorResponse("Unauthorized", 401);
 
-      // Stateless: only POST carries JSON-RPC messages
-      // GET (SSE stream) and DELETE (session close) are not applicable
-      if (request.method === "GET") {
-        return new Response("event: endpoint\ndata: /mcp\n\n", {
-          status: 200,
-          headers: {
-            "Content-Type": "text/event-stream",
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-          },
-        });
-      }
+      const server = createServer(env);
+      const handler = createMcpHandler(server);
 
-      if (request.method === "DELETE") {
-        return json({ ok: true }, 200);
-      }
-
-      if (request.method !== "POST") {
-        return new Response("Method Not Allowed", {
-          status: 405,
-          headers: { Allow: "GET, POST, DELETE" },
-        });
-      }
-
-      const server = createMcpServer(env);
-      const transport = new WebStandardStreamableHTTPServerTransport({
-        sessionIdGenerator: undefined, // stateless
-      });
-
-      await server.connect(transport);
-
-      // Rewrite URL so transport sees /mcp
+      // Rewrite URL so handler sees /mcp at root
       const mcpUrl = new URL(request.url);
       mcpUrl.pathname = "/mcp";
       const mcpRequest = new Request(mcpUrl.toString(), {
@@ -141,7 +113,7 @@ export default {
         body: request.body,
       });
 
-      return transport.handleRequest(mcpRequest);
+      return handler(mcpRequest, env, ctx);
     }
 
     // === All remaining routes require auth ===
@@ -149,7 +121,6 @@ export default {
 
     const waitUntil = (p: Promise<any>) => ctx.waitUntil(p);
 
-    // Rewrite request if path-auth stripped the token
     const restRequest = pathAuth.authenticated
       ? new Request(new URL(pathname + url.search, url.origin).toString(), request)
       : request;
