@@ -21,8 +21,9 @@ tags: [risks, operations, reliability]
 **Mitigations:**
 
 - Launchd auto-restart with watchdog (10s health check interval)
-- VM SSH backup connection as fallback (executor on Lightsail can reach Mac)
+- Backup SSH path: VM can SSH to Mac via CF Tunnel (ssh-mac.deltaops.dev), kill stuck processes, launchd auto-restarts
 - Cloudflare Tunnel reconnects automatically on wake
+- Sleep prevention via pmset and active processes
 
 **Residual:** If the Mac is powered off, no local MCP access until it comes back.
 
@@ -64,12 +65,20 @@ tags: [risks, operations, reliability]
 
 ## Auth — Secret Path Exposure
 
-**Risk:** Bearer tokens transmitted in HTTP headers could be intercepted.
+**Risk:** Bearer tokens and secret path segments transmitted over HTTPS could theoretically be intercepted.
 
 **Mitigations:**
 
-- TLS everywhere (Cloudflare edge, tunnel encryption, Caddy on VM)
-- 3-layer auth: Bearer + CF Access Service Token + Anthropic IP allowlist
-- Each layer independently revocable (see [ADR-0006](decisions/0006-three-layer-auth.md))
+- TLS everywhere (Cloudflare edge, tunnel encryption)
+- Auth model: secret path segments (Claude.ai), Bearer tokens (CC/scripts), WAF IP allowlist (planned)
+- Each layer independently revocable (see [ADR-0006](decisions/0006-three-layer-auth.md), [ADR-0015](decisions/0015-dual-connection-model.md))
 
 **Residual:** Closed. Defense in depth makes single-layer compromise insufficient.
+
+## Mac MCP — Zero Auth Window (Closed)
+
+**Risk:** Mac MCP ran with no authentication briefly during initial setup.
+
+**Resolution:** Secret path segments implemented. mac-mcp returns 401 without valid path. Bearer token also accepted for CC/scripts.
+
+**Status:** Closed.

@@ -58,6 +58,19 @@ Claude.ai (Opus) → cc_dispatch(name, prompt, cwd) → Mac MCP → Claude Code 
 
 ## When to Use Each Model
 
+### VM Executor Path (via vault-mcp)
+
+```
+Claude.ai (Opus) → execute tool (vault-mcp) → POST executor.deltaops.dev/execute → CLI on VM
+                                                    ↓
+                                              claude / codex / gemini CLI
+                                                    ↓
+                                              Mermaid-compressed result → D1 logged
+```
+
+Available executors: claude (CC 2.1.63, Max OAuth), codex (0.104.0, ChatGPT), gemini (0.29.7, Ultra), consensus (2-way diff).
+
+
 | Task | Model | Why |
 |------|-------|-----|
 | Multi-file refactor | Sonnet | Needs code understanding |

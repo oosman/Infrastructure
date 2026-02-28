@@ -29,15 +29,15 @@ deltaops.dev — managed via Cloudflare DNS.
 
 ## Workers
 
-- vault-mcp: Workflow state, tasks, GitHub integration. Free tier.
+- vault-mcp: Stateless Worker, Streamable HTTP, 10 MCP tools. Free tier.
 
 ## Tunnels
 
-- local-mcp tunnel: Mac → mac-mcp.deltaops.dev (4 ORD connections, http2Origin enabled)
-- executor tunnel: Lightsail → executor.deltaops.dev (future, Phase 3)
+- Mac tunnel: mac-mcp.deltaops.dev (HTTP/2, 4 connections) + ssh-mac.deltaops.dev (SSH)
+- Executor tunnel: executor.deltaops.dev (QUIC, retries 5, grace 30s, keepalive 90s, metrics enabled)
 
 ## Resources
 
-- D1 database (vault-db): workflow state tables
-- Workers KV: human task storage (TASKS_KV namespace)
-- Stateless Worker with Streamable HTTP MCP transport
+- D1 database: vault-db (5a0c53ff-963c-48f9-b68d-f13536104aa1) — 8 tables
+- Workers KV: TASKS_KV (0e01cc2910764d66a3cf8910f8e25eff) — human task storage
+- Account ID: 3d18a8bf1d47b952ec66dc00b76f38cd

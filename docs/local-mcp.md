@@ -8,17 +8,17 @@ Depends-on: architecture.md
 title: "Local MCP Server"
 type: reference
 status: active
-date: 2026-02-27
+date: 2026-02-28
 tags: [mcp, local, server]
 ---
 
 # Local MCP Server
 
-Node.js MCP server providing Claude.ai with direct Mac access.
+Node.js MCP server providing Claude.ai with direct Mac access via Streamable HTTP.
 
 ## Location
 
-~/Developer/local-mcp/server.js (v3.0.0, ~837 lines)
+~/Developer/local-mcp/server.js (v3.1.0)
 
 ## Tools (11)
 
@@ -32,9 +32,15 @@ Node.js MCP server providing Claude.ai with direct Mac access.
 | cc_status | Check CC agent status |
 | cc_result | Get completed CC agent output |
 | cc_kill | Kill a running CC agent |
-| cc_send_input | Send input to a running CC agent |
-| health | Server health check |
-| self_test | Run server self-diagnostics |
+| health_check | Diagnostic info (uptime, versions, tunnel, memory) |
+| search_files | Search for text patterns in files (grep + glob) |
+| notify | Send macOS notification via osascript |
+
+## Auth
+
+- **Claude.ai:** Secret path segment in URL (`https://mac-mcp.deltaops.dev/{MAC_MCP_AUTH_TOKEN}/mcp`)
+- **CC/scripts:** Bearer token in Authorization header
+- Token: MAC_MCP_AUTH_TOKEN in macOS Keychain (account: osman)
 
 ## Services (3 launchd plists)
 
@@ -54,7 +60,7 @@ Server rejects cc_dispatch calls with `--model opus` or `--model claude-opus`. F
 # Health check
 curl -sf http://127.0.0.1:3001/health | jq
 
-# Tunnel status  
+# Tunnel status
 curl -sf http://127.0.0.1:20241/ready
 
 # Logs
@@ -66,6 +72,6 @@ launchctl kickstart -k gui/$(id -u)/com.osman.local-mcp
 
 ## Configuration
 
-- Token: macOS Keychain entry "local-mcp-token" (account: osman)
 - Tunnel config: ~/Developer/local-mcp/cloudflared-config.yml
-- Watchdog: ~/Developer/local-mcp/watchdog.sh (10s timeout)
+- Watchdog: ~/Developer/local-mcp/watchdog.sh (10s health check interval)
+- SDK: @modelcontextprotocol/sdk pinned to 1.17.3

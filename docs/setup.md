@@ -8,7 +8,7 @@ Depends-on: architecture.md
 title: "Setup Guide"
 type: how-to
 status: active
-date: 2026-02-27
+date: 2026-02-28
 tags: [setup, onboarding]
 ---
 
@@ -24,10 +24,10 @@ tags: [setup, onboarding]
 
 ## Dotfiles
 
-All Claude config lives in ~/dotfiles/claude/ and is symlinked:
+All Claude config lives in ~/Developer/dotfiles/claude/ and is symlinked:
 
 ```bash
-ls -la ~/.claude/  # Should show symlinks → ~/dotfiles/claude/
+ls -la ~/.claude/  # Should show symlinks → ~/Developer/dotfiles/claude/
 ```
 
 Key symlinked items: CLAUDE.md, commands/, contexts/, hooks/, scripts/, settings.json.
@@ -38,18 +38,25 @@ Managed via macOS Keychain (account: osman):
 
 ```bash
 # Check all secrets
-python3 ~/dotfiles/claude/scripts/secrets.py
+python3 ~/Developer/dotfiles/claude/scripts/secrets.py
 
 # Add a new secret
 security add-generic-password -a "osman" -s "KEY_NAME" -w "value" -U
 
-# Regenerate exports
-python3 ~/dotfiles/claude/scripts/secrets.py  # writes ~/.claude/secrets-env.sh
+# Read a secret
+security find-generic-password -a "osman" -s "KEY_NAME" -w
 ```
+
+| Key | Purpose |
+|-----|---------|
+| CF_API_TOKEN | Cloudflare API (Workers/D1/KV) |
+| VAULT_AUTH_TOKEN | Bearer for vault-mcp |
+| MAC_MCP_AUTH_TOKEN | Secret path for mac-mcp |
+| EXECUTOR_SECRET | Auth for executor.deltaops.dev |
 
 ## Local MCP Server
 
-See docs/local-mcp.md for full details.
+See [local-mcp.md](local-mcp.md) for full details.
 
 ```bash
 # Verify all three services
@@ -64,6 +71,6 @@ curl -sf http://127.0.0.1:20241/ready  # tunnel
 |---------|------|
 | Infrastructure | ~/Developer/infrastructure/ |
 | Local MCP | ~/Developer/local-mcp/ |
-| Projects | ~/Developer/projects/ |
+| Dotfiles | ~/Developer/dotfiles/ |
 | Archives | ~/Developer/archive/ |
-| Dotfiles | ~/dotfiles/ |
+| Logs | ~/logs/ |

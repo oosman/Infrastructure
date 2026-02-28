@@ -28,7 +28,8 @@ Local dev infrastructure: MCP servers, Cloudflare tunnels, launchd services, vau
     - [Task Routing](task-routing.md) — Model discipline and orchestrator/executor split
     - [Git Conventions](git-conventions.md) — Branching, commits, PRs, merge strategy
     - [Known Risks](risks.md) — SPOFs, mitigations, operational constraints
-- **[Decisions](decisions/0001-foundational-constraints.md)** — Architecture Decision Records (ADR-0001 through ADR-0010)
+    - [Completion Ledger](completion.md) — Canonical record of what's done
+- **[Decisions](decisions/0001-foundational-constraints.md)** — Architecture Decision Records (ADR-0001 through ADR-0028)
 
 ## Quick Verification
 
