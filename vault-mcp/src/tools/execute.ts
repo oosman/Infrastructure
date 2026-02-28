@@ -8,14 +8,30 @@ import { createTask, writeStage } from "../logic/workflow-db";
 // ============================================================
 // Cost estimation
 // ============================================================
-function estimateCost(model: string, tokensIn: number, tokensOut: number): number {
-  const pricing: Record<string, { input: number; output: number }> = {
-    'claude-sonnet-4-5-20250929': { input: 3, output: 15 },
-    'gpt-5.3-codex': { input: 2.5, output: 10 },
-    'gemini-2.5-pro': { input: 1.25, output: 10 },
+function estimateCost(metrics: any, executor?: string): number {
+  const input = metrics?.input_tokens ?? 0;
+  const output = metrics?.output_tokens ?? 0;
+  // Rough per-1M-token rates
+  const rates: Record<string, { input: number; output: number }> = {
+    claude: { input: 3.0, output: 15.0 },
+    codex: { input: 2.5, output: 10.0 },
+    gemini: { input: 1.25, output: 5.0 },
   };
-  const p = pricing[model] ?? { input: 3, output: 15 };
-  return (tokensIn * p.input + tokensOut * p.output) / 1_000_000;
+  const r = rates[executor ?? "claude"] ?? rates.claude;
+  return (input * r.input + output * r.output) / 1_000_000;
+}
+
+// ============================================================
+// Default model inference
+// ============================================================
+function inferDefaultModel(executor?: string): string {
+  const defaults: Record<string, string> = {
+    claude: "claude-sonnet-4-5-20250929",
+    codex: "gpt-5.3-codex",
+    gemini: "gemini-2.5-pro",
+    consensus: "consensus",
+  };
+  return defaults[executor ?? "claude"] ?? "unknown";
 }
 
 // ============================================================
@@ -98,8 +114,8 @@ export function registerExecuteTool(server: McpServer, env: Env) {
         const task = await createTask(env.VAULT_DB, {
           task_type: params.task_type ?? "feature",
           complexity: params.complexity ?? "simple",
-          language: params.language ?? "unknown",
-          stack: params.stack ?? "unknown",
+          language: params.language ?? "typescript",
+          stack: params.stack ?? "node",
           description: params.instruction.slice(0, 500),
         });
 
@@ -116,18 +132,16 @@ export function registerExecuteTool(server: McpServer, env: Env) {
         // 4. Check for executor error
         if ("error" in result && typeof result.error === "string") {
           const metrics = result.metrics as Record<string, unknown> | undefined;
-          const model = (metrics?.model as string) ?? params.model ?? params.executor ?? "unknown";
-          const tokensIn = (metrics?.input_tokens as number) ?? 0;
-          const tokensOut = (metrics?.output_tokens as number) ?? 0;
+          const model = params.model ?? inferDefaultModel(params.executor);
 
           await writeStage(env.VAULT_DB, taskId, {
-            stage_name: "execute_error",
-            stage_type: "impl",
+            stage_name: `impl-${params.executor ?? "claude"}`,
+            stage_type: "error",
             model,
             output: result as Record<string, unknown>,
-            tokens_input: tokensIn,
-            tokens_output: tokensOut,
-            cost_usd: estimateCost(model, tokensIn, tokensOut),
+            tokens_input: (metrics?.input_tokens as number) ?? 0,
+            tokens_output: (metrics?.output_tokens as number) ?? 0,
+            cost_usd: estimateCost(metrics, params.executor),
             latency_ms: latencyMs,
           });
 
@@ -140,18 +154,16 @@ export function registerExecuteTool(server: McpServer, env: Env) {
 
         // 5. Log success stage to D1
         const metrics = result.metrics as Record<string, unknown> | undefined;
-        const model = (metrics?.model as string) ?? params.model ?? params.executor ?? "unknown";
-        const tokensIn = (metrics?.input_tokens as number) ?? 0;
-        const tokensOut = (metrics?.output_tokens as number) ?? 0;
+        const model = params.model ?? inferDefaultModel(params.executor);
 
         const stageResult = await writeStage(env.VAULT_DB, taskId, {
-          stage_name: "execute",
+          stage_name: `impl-${params.executor ?? "claude"}`,
           stage_type: "impl",
           model,
           output: result as Record<string, unknown>,
-          tokens_input: tokensIn,
-          tokens_output: tokensOut,
-          cost_usd: estimateCost(model, tokensIn, tokensOut),
+          tokens_input: (metrics?.input_tokens as number) ?? 0,
+          tokens_output: (metrics?.output_tokens as number) ?? 0,
+          cost_usd: estimateCost(metrics, params.executor),
           latency_ms: latencyMs,
         });
 
