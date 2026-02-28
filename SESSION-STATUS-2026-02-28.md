@@ -1,47 +1,50 @@
 # Session Status — 2026-02-28
 
-## What's Done
-- Mac MCP v3.1.0 operational, auth fix committed (local-mcp repo, `e6ba7b3`)
-- Mac MCP running with zero auth (MAC_MCP_AUTH_TOKEN removed from launchd to unblock Claude.ai)
-- Claude.ai MCP connection working
-- Infrastructure Plan v2 merged and reviewed
-- Handoff prompt created at `/mnt/user-data/outputs/session-handoff-next.md`
-- D1 database renamed: pipeline-db → vault-db (UUID: 5a0c53ff-963c-48f9-b68d-f13536104aa1)
-- Plan file scrubbed: all pipeline-db → vault-db, 0002_pipeline.sql → 0001_schema.sql
-- CLAUDE.md and docs/architecture.md updated in repo (commit ea371e4)
+## Completed This Session
 
-## What's In Flight (other sessions)
-1. **Merge/cleanup session** — gave it a 10-point cleanup prompt for the plan. Check if it finished.
-2. **Handoff execution session** — working from session-handoff-next.md. Unknown progress.
+### P0: mac-mcp Auth (CLOSED)
+- Secret path segment auth implemented in server.js
+- Claude.ai connects via `https://mac-mcp.deltaops.dev/<secret>/mcp`
+- CC/scripts connect via `Authorization: Bearer <secret>` to `/mcp`
+- Bare `/mcp` returns 401 — zero-auth RCE is closed
+- Commit: `41a99e2` (local-mcp repo)
 
-## What's NOT Done Yet
-### Urgent (P0)
-- [ ] mac-mcp is ZERO AUTH from public internet (full RCE). Phase 1.1 closes this.
-- [ ] Phase 1.1 must implement DUAL auth: CF Access (Claude.ai) + Bearer token (CC/scripts)
+### Secrets Infrastructure
+- macOS Keychain established as canonical secrets store
+- Pattern: `security find-generic-password -a "osman" -s "KEY" -w`
+- Keys stored: CF_API_TOKEN, MAC_MCP_AUTH_TOKEN, CF_ACCESS_CLIENT_ID, CF_ACCESS_CLIENT_SECRET
+- Documented in CLAUDE.md (global + infrastructure)
+- secrets.py updated with infra keys
+- Commits: `850d424` (infrastructure), `1a328aa` (dotfiles)
 
-### Important
-- [ ] Dotfiles has uncommitted bootstrap work (commands, skills, agents, settings changes)
-- [ ] AWS CLI auth broken (`rm ~/.aws/credentials ~/.aws/config && aws configure`)
-- [ ] VM SSH unreachable (check Lightsail console)
-- [ ] D1 has zero tables (run migrations against vault-db)
+### CF Access — Attempted and Abandoned
+- Enabled CF Access on account, created service token + app
+- Discovered Claude.ai MCP only supports OAuth — no custom headers
+- CF Access incompatible with Claude.ai MCP connector model
+- Deleted service token + app, pivoted to secret path segment
+- Decision: CF Access is wrong tool for Claude.ai MCP auth
+
+## NOT Done — Priority Order
+
+### 1. VM SSH / Backup Connection (NEXT — was supposed to be first)
+- Phase 1.0 in plan — unblocks fallback chain + executor
+- AWS CLI auth broken: `rm ~/.aws/credentials ~/.aws/config && aws configure`
+- VM SSH unreachable — check Lightsail console
+- Fallback chain not operational until VM verified
+
+### 2. Remaining Phase 1
+- [ ] D1 has zero tables — run migrations against vault-db
+- [ ] Tunnel config: `http2Origin: true` is wrong (Phase 1.5)
+- [ ] Log rotation (Phase 1.6)
+
+### 3. Cleanup
+- [ ] Delete old Mac MCP connector in Claude.ai (bare /mcp URL)
 - [ ] local-mcp repo has no remote — needs `git remote add origin` + push
-- [ ] wrangler.toml needs vault-db UUID update (if it exists in vault-mcp source)
+- [ ] minio launchd plist still loaded
+- [ ] CF_ACCESS_CLIENT_ID/SECRET in Keychain are now stale (CF Access abandoned)
 
-### Decisions Made Today
-- Claude.ai MCP cannot send Bearer tokens → dual-connection model required
-- MCP SDK pinned to 1.17.3 (1.27.0 auto-upgrade broke auth)
-- local-mcp belongs in dotfiles (not infrastructure repo)
-- D1 renamed pipeline-db → vault-db (zero tables, clean swap)
-- Naming: no more "pipeline" anywhere in active project
-
-### Key File Locations
-- Infrastructure plan: project knowledge (infrastructure-plan-merged.md)
-- Handoff: `/mnt/user-data/outputs/session-handoff-next.md`
-- Mac MCP server: `~/Developer/local-mcp/server.js`
-- Dotfiles: `~/Developer/dotfiles/` (uncommitted changes!)
-- Infrastructure repo: `~/Developer/infrastructure/`
-
-## Next Session: Start Here
-1. Commit dotfiles changes: `cd ~/Developer/dotfiles && git add -A && git commit -m "bootstrap: commands, skills, agents, settings"`
-2. Check if merge/cleanup session finished the plan scrub
-3. Execute Phase 1.1 (dual auth on mac-mcp) — this is the P0
+## Key Decisions
+- Claude.ai MCP cannot send custom headers — only URL + OAuth
+- Secret path segment chosen over CF Access, IP allowlist, OAuth proxy
+- Keychain is canonical secrets store
+- CF Account ID: 3d18a8bf1d47b952ec66dc00b76f38cd
