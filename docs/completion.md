@@ -120,6 +120,7 @@
 | 5.3 Circuit breaker verification | ✅ | daily + monthly cost accumulation in circuit_breaker table confirmed | 2026-02-28 |
 | 5.4 Mermaid compression passthrough | ✅ | mermaid field returned in MCP response, graph LR format | 2026-02-28 |
 | 5.5 Stale DO cleanup | ✅ | env.ts clean, wrangler.toml migration history preserved (required by CF) | 2026-02-28 |
+| 5.6 Escalation protocol | ✅ | DeepSeek→Flash→Pro→Codex→Sonnet→Opus→Consensus→Human. Retry on task-quality failures, skip infra errors. Max 3+consensus+human. 83a118a | 2026-02-28 |
 
 ### Key Commits
 - 35f801d: Wire execute.ts into workflow lifecycle (createTask, writeStage, cost estimation)

@@ -53,6 +53,17 @@ When the `execute` MCP tool is called:
 
 Cost estimation uses per-executor rates: Claude ($3/$15 per MTok), Codex ($2.5/$10), Gemini ($1.25/$5).
 
+### Escalation Protocol (5.6)
+
+On task-quality failure (test_fail, wrong_file, unknown), the execute tool automatically retries with the next-tier model:
+
+```
+DeepSeek → Gemini Flash → Gemini 2.5 Pro → Codex → Sonnet → Opus → Consensus → Human
+```
+
+Infrastructure failures (auth_failure, timeout, syntax_error) do NOT escalate — they fail immediately.
+Max 3 sequential attempts before consensus, 5 total attempts absolute cap.
+
 ## Current Focus
 
 The active work stream is building the infrastructure itself — the system that will later orchestrate builds and other projects. This is organized into phases:
