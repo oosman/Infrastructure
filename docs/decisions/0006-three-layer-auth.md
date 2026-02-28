@@ -1,3 +1,9 @@
+<!-- RESUME CONTEXT
+What: ADR-0006 — Three-layer auth model
+Why: Records the Bearer + CF Access + IP allowlist auth design
+Next: Implementation in Phase 1
+Depends-on: _adr-template.md
+-->
 ---
 title: "3-Layer Authentication"
 status: accepted

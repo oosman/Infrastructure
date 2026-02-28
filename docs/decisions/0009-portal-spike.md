@@ -1,3 +1,9 @@
+<!-- RESUME CONTEXT
+What: ADR-0009 — Portal spike evaluation
+Why: Records the evaluation of a portal/dashboard UI
+Next: Deferred — re-evaluate after Phase 5
+Depends-on: _adr-template.md
+-->
 ---
 title: "Portal Spike Before Commitment"
 status: proposed

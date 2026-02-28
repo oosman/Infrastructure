@@ -1,3 +1,9 @@
+<!-- RESUME CONTEXT
+What: ADR-0005 — Model discipline (Opus orchestrates, Sonnet/Haiku executes)
+Why: Records the core cost and capability separation
+Next: Enforcement in mac-mcp server
+Depends-on: _adr-template.md
+-->
 ---
 title: "Model Discipline Rule"
 status: accepted

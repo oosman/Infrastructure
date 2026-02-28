@@ -1,3 +1,9 @@
+<!-- RESUME CONTEXT
+What: Mac MCP server reference — tools, services, monitoring
+Why: Documents the Node.js MCP server on localhost
+Next: vault-mcp.md for the Cloudflare Worker counterpart
+Depends-on: architecture.md
+-->
 ---
 title: "Local MCP Server"
 type: reference

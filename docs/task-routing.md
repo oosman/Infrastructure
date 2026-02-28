@@ -1,3 +1,9 @@
+<!-- RESUME CONTEXT
+What: Task routing — orchestrator/executor split and model discipline
+Why: Documents the core workflow pattern and cost management
+Next: git-conventions.md for commit/branch standards
+Depends-on: architecture.md, decisions/0005-model-discipline.md
+-->
 ---
 title: "Task Routing"
 type: explanation

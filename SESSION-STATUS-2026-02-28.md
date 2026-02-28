@@ -1,39 +1,47 @@
-# Session Status — 2026-02-28 (v3)
+# Session Status — 2026-02-28 (v4)
 
-## Completed Today
+## Phases 1-2: COMPLETE ✅
 
-### Phase 1 — Emergency Security ✅
-- P0 mac-mcp auth — secret path segment + Bearer token (commit `41a99e2`)
-- Backup SSH path — VM → `ssh mac` via CF Tunnel `ssh-mac.deltaops.dev` (commit `df7b068`)
-- Tunnel config — `http2Origin: false`, `protocol: http2`, `retries: 10` (commit `cb04c0b`)
+### Phase 1 — Emergency Security Hardening ✅
+- P0 mac-mcp auth — secret path segment + Bearer token (`41a99e2`)
+- Backup SSH path — VM → ssh mac via CF Tunnel (`df7b068`)
+- Tunnel config — http2Origin false, protocol http2, retries 10 (`cb04c0b`)
+- VM tunnel config — quic → http2, matching originRequest settings
 - Secrets infrastructure — Keychain canonical store, documented in CLAUDE.md
-- D1 tables — confirmed 8 tables exist
-- Cleanup — minio removed, stale keychain entries deleted
+- D1 tables — 8 tables confirmed present
+- Executor alive — /health → 200, auth enforced (x-auth-token)
+- Cleanup — minio removed, stale CF Access keychain entries deleted
+- Browser Integrity Check — OFF (dashboard)
+- Bot Fight Mode — OFF (dashboard)
+- Credential perms — 600 on cloudflared JSON files
 
 ### Phase 2 — SSE Reliability & Mac Hardening ✅
-- SSE keepalive — 30s heartbeat on streaming responses
-- Mac sleep prevention — `pmset -c sleep 0, disablesleep 1, womp 1`
+- SSE keepalive — 30s heartbeat on mac-mcp streaming responses (`013b4cf`)
+- Mac sleep prevention — pmset: sleep 0, disablesleep 1, womp 1
 - Log rotation — script + cron every 6 hours
-- WiFi change detection — watchdog auto-restarts tunnel on SSID change
+- WiFi change detection — watchdog auto-restarts tunnel on SSID change (`9996f72`)
 - Tunnel health alerts — CF dashboard notifications configured
-- Sudo access — full passwordless via `/etc/sudoers.d/claude-full`
+- Full sudo — /etc/sudoers.d/claude-full (passwordless, all commands)
 
-### Phase 4 — Executor Audit (partial)
-- Executor healthy: running on VM port 8080, systemd enabled, auth working
-- EXECUTOR_SECRET stored in Keychain
-- local-mcp repo pushed to GitHub (oosman/local-mcp, private)
-- VM SSH key renamed: `~/.ssh/lightsail-infra.pem`
+### Notes
+- Executor is pure JSON (no SSE) — keepalive N/A
+- WAF IP allowlist superseded by secret path auth
+- SSH key is `lightsail-infra.pem` (not lightsail-pipeline)
 
 ## In Progress
-- Phase 3 (vault-mcp v2) — parallel Claude.ai session
+- **Phase 3 (vault-mcp v2)** — parallel Claude.ai session
 
 ## Remaining
-- [ ] Phase 4: Executor tunnel hardening (bare config)
-- [ ] Phase 5-8
-- [ ] Delete old Mac MCP connector in Claude.ai (bare /mcp URL)
+- [ ] Phase 4: Executor hardening
+- [ ] Phase 5: Orchestration wiring
+- [ ] Phase 6: Portal spike
+- [ ] Phase 7: AI Gateway
+- [ ] Phase 8: Context continuity & dashboard
+- [ ] local-mcp repo has no git remote — needs push
 
-## Key Info
-- VM: `ssh -i ~/.ssh/lightsail-infra.pem ubuntu@100.53.55.116`
-- VM → Mac: `ssh mac`
-- CF Account ID: 3d18a8bf1d47b952ec66dc00b76f38cd
-- Executor: x-auth-token auth, port 8080, max 2 concurrent, 180s timeout
+## Keychain State
+| Key | Status |
+|-----|--------|
+| CF_API_TOKEN | ✅ Valid |
+| MAC_MCP_AUTH_TOKEN | ✅ In use |
+| EXECUTOR_SECRET | ✅ Stored |

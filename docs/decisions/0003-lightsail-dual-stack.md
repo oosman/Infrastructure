@@ -1,3 +1,9 @@
+<!-- RESUME CONTEXT
+What: ADR-0003 — Lightsail dual-stack VM
+Why: Records the VM choice for executor hosting
+Next: Implementation in Phase 3
+Depends-on: _adr-template.md
+-->
 ---
 title: "Lightsail Dual-Stack Small"
 status: accepted

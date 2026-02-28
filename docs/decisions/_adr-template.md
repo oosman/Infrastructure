@@ -1,3 +1,9 @@
+<!-- RESUME CONTEXT
+What: ADR template — standard format for Architecture Decision Records
+Why: Ensures consistency across all ADR files
+Next: Copy this template when creating new ADRs
+Depends-on: none
+-->
 ---
 title: "ADR Template"
 status: proposed

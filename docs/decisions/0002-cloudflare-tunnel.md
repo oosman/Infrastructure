@@ -1,3 +1,9 @@
+<!-- RESUME CONTEXT
+What: ADR-0002 — Cloudflare Tunnel for Mac access
+Why: Records the decision to use CF Tunnel instead of open ports
+Next: Implementation in local-mcp setup
+Depends-on: _adr-template.md
+-->
 ---
 title: "Cloudflare Tunnel for MCP Access"
 status: accepted

@@ -1,3 +1,9 @@
+<!-- RESUME CONTEXT
+What: Cloudflare services — DNS, Workers, Tunnels, D1, KV
+Why: Documents all Cloudflare resources used by infrastructure
+Next: task-routing.md for operational details
+Depends-on: architecture.md
+-->
 ---
 title: "Cloudflare Services"
 type: reference

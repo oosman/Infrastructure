@@ -1,3 +1,9 @@
+<!-- RESUME CONTEXT
+What: ADR-0001 — Foundational Constraints
+Why: Records the six non-negotiable principles governing all work
+Next: Implementation across all phases
+Depends-on: _adr-template.md
+-->
 ---
 title: "Foundational Constraints"
 status: accepted

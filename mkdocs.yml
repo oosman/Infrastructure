@@ -64,6 +64,7 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Architecture: architecture.md
+  - Workflow: workflow.md
   - Setup: setup.md
   - Services:
       - Mac MCP: local-mcp.md
@@ -73,6 +74,10 @@ nav:
       - Task Routing: task-routing.md
       - Git Conventions: git-conventions.md
       - Known Risks: risks.md
+      - Testing: testing.md
+      - CI/CD: ci-workflow.md
+      - Intent Validation: intent-validation.md
+      - Context Persistence: memory-layer.md
   - Decisions:
       - decisions/0001-foundational-constraints.md
       - decisions/0002-cloudflare-tunnel.md
@@ -84,4 +89,22 @@ nav:
       - decisions/0008-streamable-http.md
       - decisions/0009-portal-spike.md
       - decisions/0010-ai-gateway-deferred.md
+      - decisions/0011-zensical-over-material.md
+      - decisions/0012-single-source-kb.md
+      - decisions/0013-dotfiles-symlink-source-of-truth.md
+      - decisions/0014-cc-max-oauth-over-vertex.md
+      - decisions/0015-dual-connection-model.md
+      - decisions/0016-human-tasks-kv-not-github.md
+      - decisions/0017-naming-infrastructure-workflow.md
+      - decisions/0018-vault-db-rename.md
+      - decisions/0019-sdk-pin-1-17-3.md
+      - decisions/0020-kb-bootstrap-phase-zero.md
+      - decisions/0021-direct-https-vm.md
+      - decisions/0022-hooks-shell-oneliners.md
+      - decisions/0023-circuit-breakers-auxiliary-only.md
+      - decisions/0024-skip-a2a-protocol.md
+      - decisions/0025-classification-pass-structured-fields.md
+      - decisions/0026-consensus-worktree-isolation.md
+      - decisions/0027-executor-stay-with-tunnel.md
+      - decisions/0028-mermaid-compression-protocol.md
   - Tags: tags.md

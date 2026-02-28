@@ -1,3 +1,9 @@
+<!-- RESUME CONTEXT
+What: Git conventions — branching, commits, PRs, merge strategy
+Why: Standard reference for all git operations in this project
+Next: risks.md for operational constraints
+Depends-on: none
+-->
 ---
 title: "Git Conventions"
 type: reference

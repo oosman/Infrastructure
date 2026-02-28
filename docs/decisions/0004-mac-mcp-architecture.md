@@ -1,3 +1,9 @@
+<!-- RESUME CONTEXT
+What: ADR-0004 — Mac MCP architecture
+Why: Records the Node.js MCP server design decisions
+Next: Implementation in local-mcp/server.js
+Depends-on: _adr-template.md
+-->
 ---
 title: "Mac MCP Architecture"
 status: accepted

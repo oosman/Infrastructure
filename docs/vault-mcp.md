@@ -1,3 +1,9 @@
+<!-- RESUME CONTEXT
+What: vault-mcp reference — CF Worker for workflow state, tasks, GitHub
+Why: Documents the Cloudflare Worker MCP server
+Next: cloudflare.md for infrastructure details
+Depends-on: architecture.md
+-->
 ---
 title: "vault-mcp"
 type: reference

@@ -1,3 +1,9 @@
+<!-- RESUME CONTEXT
+What: ADR-0008 — Streamable HTTP transport
+Why: Records the switch from SSE to Streamable HTTP for MCP
+Next: Implementation in all MCP servers
+Depends-on: _adr-template.md
+-->
 ---
 title: "Streamable HTTP over SSE"
 status: accepted

@@ -1,3 +1,9 @@
+<!-- RESUME CONTEXT
+What: KB home page — overview and quick links to all docs
+Why: Entry point for the infrastructure knowledge base
+Next: architecture.md for system details
+Depends-on: none
+-->
 ---
 title: "Home"
 type: overview

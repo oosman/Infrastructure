@@ -1,3 +1,9 @@
+<!-- RESUME CONTEXT
+What: ADR-0010 — AI Gateway deferred to Phase 7
+Why: Records deferring CF AI Gateway integration
+Next: Implementation in Phase 7
+Depends-on: _adr-template.md
+-->
 ---
 title: "AI Gateway Deferred Until Traffic"
 status: accepted

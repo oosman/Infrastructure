@@ -1,3 +1,9 @@
+<!-- RESUME CONTEXT
+What: ADR-0007 — Tool consolidation (10 tools)
+Why: Records the consolidation from many tools to 10 in vault-mcp
+Next: Implementation in vault-mcp Worker
+Depends-on: _adr-template.md
+-->
 ---
 title: "Tool Consolidation (20 → 10)"
 status: accepted

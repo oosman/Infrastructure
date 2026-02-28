@@ -1,37 +1,28 @@
-# HANDOFF — 2026-02-28 (Updated)
+# HANDOFF — 2026-02-28 (v3)
 
 ## Resume Point
-**Phase 3 is in progress (parallel session).** Next after that: Phase 4 (Executor Hardening).
+Phases 1-2 complete. Phase 3 in progress (parallel session). Next: Phase 4 (Executor Hardening).
 
-## What's Complete
-- **Phase 1** — Security: auth, backup SSH, tunnel config, secrets, D1, cleanup
-- **Phase 2** — Reliability: SSE keepalive, sleep prevention, log rotation, WiFi detection, tunnel alerts
+## What's Done
+- **Phase 1** — Auth (secret path), backup SSH, tunnel configs (both Mac + VM), executor alive, secrets in Keychain, Bot Fight + Browser Integrity off, credential perms, cleanup
+- **Phase 2** — SSE keepalive, sleep prevention, log rotation, WiFi watchdog, tunnel alerts, full sudo
 
-## Backup Connection
-```
-Claude.ai → CC on VM → ssh mac → full Mac access
-```
+## Key Info
+- SSH key: `~/.ssh/lightsail-infra.pem` (not lightsail-pipeline)
 - VM: `ssh -i ~/.ssh/lightsail-infra.pem ubuntu@100.53.55.116`
-- VM → Mac: `ssh mac` (configured in ~/.ssh/config, uses ssh-mac.deltaops.dev tunnel)
-- Can restart mac-mcp: `ssh mac "launchctl kickstart -k gui/501/com.osman.local-mcp"`
+- VM → Mac: `ssh mac` (via ssh-mac.deltaops.dev tunnel)
+- Restart mac-mcp: `ssh mac "launchctl kickstart -k gui/501/com.osman.local-mcp"`
+- Full sudo: `/etc/sudoers.d/claude-full`
+- CF Account: `3d18a8bf1d47b952ec66dc00b76f38cd`
 
-## Keychain State
+## Keychain
 | Key | Status |
 |-----|--------|
-| CF_API_TOKEN | ✅ Valid |
-| MAC_MCP_AUTH_TOKEN | ✅ In use |
-| EXECUTOR_SECRET | ❌ Not yet stored |
-
-## Commits Today (local-mcp)
-| Hash | Description |
-|------|-------------|
-| `41a99e2` | Secret path auth |
-| `df7b068` | SSH backup path |
-| `cb04c0b` | Tunnel config fix |
-| `013b4cf` | SSE keepalive + log rotation |
-| `9996f72` | WiFi change detection |
+| CF_API_TOKEN | ✅ |
+| MAC_MCP_AUTH_TOKEN | ✅ |
+| EXECUTOR_SECRET | ✅ |
 
 ## Still TODO
-- [ ] Delete old Mac MCP connector (bare /mcp URL)
 - [ ] local-mcp repo needs git remote + push
-- [ ] Phase 4+: Executor hardening, orchestration, portal, gateway, dashboard
+- [ ] Phase 3: vault-mcp v2 (in progress, other session)
+- [ ] Phases 4-8

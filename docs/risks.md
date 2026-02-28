@@ -1,3 +1,9 @@
+<!-- RESUME CONTEXT
+What: Known risks — SPOFs, mitigations, residual risks
+Why: Tracks operational risks and their mitigations
+Next: decisions/ for individual architectural decisions
+Depends-on: architecture.md
+-->
 ---
 title: "Known Risks"
 type: reference

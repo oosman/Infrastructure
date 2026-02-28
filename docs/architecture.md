@@ -1,3 +1,9 @@
+<!-- RESUME CONTEXT
+What: System architecture — diagram, auth model, transport, tool reference
+Why: Central reference for how all infrastructure components connect
+Next: setup.md for getting started, service docs for details
+Depends-on: index.md
+-->
 ---
 title: "Architecture"
 type: explanation

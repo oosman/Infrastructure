@@ -1,3 +1,9 @@
+<!-- RESUME CONTEXT
+What: Setup guide — prerequisites, dotfiles, secrets, verification
+Why: Onboarding reference for new machines or fresh installs
+Next: local-mcp.md for server details
+Depends-on: architecture.md
+-->
 ---
 title: "Setup Guide"
 type: how-to
