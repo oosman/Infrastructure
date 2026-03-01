@@ -23,6 +23,20 @@ Claude.ai (Opus 4.6 orchestrator, 200K context)
 - **Transport:** Streamable HTTP (SSE removed, returns 410)
 - **Naming:** "workflow" not "pipeline". vault-db is the D1 database.
 
+## Context Window Budget (200K hard limit)
+
+| Component | Budget | Notes |
+|-----------|--------|-------|
+| System prompt + project files | ~7.5K | Foundational, always present |
+| MCP tool schemas | ~2K | ~200 tokens × 10 tools |
+| Active task list | ~2K | Cap at 20 open tasks |
+| Workflow state summary | ~1K | Mermaid-compressed |
+| Handoff/recovery doc | ~500 | From checkpoint load |
+| **Overhead subtotal** | **~13K** | **6.5% of 200K** |
+| Conversation history | ~187K | Remainder for work |
+
+Eviction: if task list exceeds 2K tokens, show only current project tasks + last 5 cross-project. Full list via `task(action: "list")`.
+
 ## Continuity Protocol
 
 ### /bismillah (type this at beginning of every new session)
@@ -53,9 +67,11 @@ Call `search(query: "...")` via vault-mcp before saying you don't know.
 
 ### Degraded Mode (vault-mcp unreachable)
 - Tasks: mac-mcp `write_file` to `~/.claude/tasks-fallback.md`
+- Workflow state: mac-mcp `write_file` to `~/.claude/workflow-fallback.md`
 - Checkpoints: mac-mcp `write_file` to `~/.claude/checkpoints-fallback.md`
 - Everything else (mac-mcp, CC agents, git) works normally
 - On session end: include "DEGRADED: replay pending" in handoff
+- On recovery: replay fallback files via task(action: "add"), then delete fallback contents
 
 ## Self-Sufficiency Rule
 
