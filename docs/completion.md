@@ -177,6 +177,7 @@
 - aa65507: Initial AI Gateway + classification (ANTHROPIC_API_KEY path)
 - 4a007e9: Switch to Workers AI Llama 3.1 8B (free, no API key)
 - ef0cfcc: Enable gateway caching (skipCache=false, cacheTtl=3600)
+- 453308b: Upgrade model ladder — Sonnet 4.6, Gemini 3.1 Pro, updated pricing
 
 ### Key Decisions
 - Workers AI (Llama 3.1 8B) over Anthropic Haiku — free tier, no API key, sufficient for 5-field JSON classification
@@ -185,6 +186,7 @@
 - Gateway scope: classification calls only. Executor CLI calls (claude/codex/gemini) go direct to providers via OAuth/API keys — by design, CLIs need local auth and complete environments.
 - Gateway value is foundational plumbing today. Once Mermaid compression protocol validates ~100x on JSON summaries → executor switches from CLI OAuth to direct API calls → all provider traffic routes through gateway → full cost analytics, caching, and rate limiting become operational. Gate G1 trigger: Mermaid validation complete.
 - Gateway: skipCache=false + cacheTtl=3600 (cache identical classifications), metadata includes task_id
+- Model ladder upgraded: Sonnet 4.5→4.6 (claude-sonnet-4-6), Gemini 2.5 Pro→3.1 Pro (gemini-3.1-pro-preview), pricing updated
 
 ### Files Created/Modified
 - vault-mcp/src/logic/classify.ts (new) — classification via Workers AI
@@ -235,6 +237,7 @@
 | D1 | vault-db (5a0c53ff) | ✅ 8 tables, data flowing | Via vault-mcp |
 | KV | TASKS_KV (0e01cc29) | ✅ | Via vault-mcp |
 | AI Gateway | infra-gateway | ✅ | Workers AI binding (Llama 3.1 8B, free) |
+| Model ladder | — | ✅ | Flash→3.1 Pro→Codex→Sonnet 4.6→Opus 4.6→Consensus |
 
 ## Pending Actions (require Osama's hands)
 
