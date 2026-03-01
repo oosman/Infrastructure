@@ -7,9 +7,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.min.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
-<script>tailwind.config={theme:{extend:{}}}</script>
 <style>body{margin:0;background:#020617;color:#fff;font-family:system-ui,-apple-system,sans-serif}
 .spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
 .pulse{animation:pulse 2s ease-in-out infinite}@keyframes pulse{0%,100%{opacity:.5}50%{opacity:.3}}</style>
@@ -21,7 +19,7 @@ const e=React.createElement,{useState,useEffect,useCallback,useRef}=React;
 const{BarChart,Bar,LineChart,Line,PieChart,Pie,Cell,XAxis,YAxis,Tooltip,ResponsiveContainer,CartesianGrid,Legend}=Recharts;
 
 const COLORS=["#3b82f6","#10b981","#f59e0b","#ef4444","#8b5cf6","#ec4899","#06b6d4","#84cc16"];
-const TABS=[["health","Health"],["cost","Cost"],["leaderboard","Leaderboard"],["tasks","Tasks"],["analytics","Analytics"]];
+const TABS=[["health","⚡ Health"],["cost","💰 Cost"],["leaderboard","🏆 Leaderboard"],["tasks","📋 Tasks"],["analytics","📊 Analytics"]];
 
 const short=m=>m?.replace("claude-","").replace(/-2025\d{4}/,"").replace("-preview","")??"—";
 const fmt$=n=>n==null?"—":n<.01?`$${n.toFixed(4)}`:`$${n.toFixed(2)}`;
@@ -30,14 +28,6 @@ const fmtPct=n=>n==null?"—":`${(n*100).toFixed(0)}%`;
 const ago=iso=>{if(!iso)return"—";const s=Math.floor((Date.now()-new Date(iso).getTime())/1000);
   if(s<60)return`${s}s ago`;if(s<3600)return`${Math.floor(s/60)}m ago`;
   if(s<86400)return`${Math.floor(s/3600)}h ago`;return`${Math.floor(s/86400)}d ago`};
-
-function icon(name,cls="w-4 h-4"){
-  const svg=lucide.icons[name];
-  if(!svg)return null;
-  return e("span",{className:cls+" inline-block",dangerouslySetInnerHTML:{
-    __html:`<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svg[1].map(([tag,attrs])=>{let s=`<${tag}`;for(const[k,v]of Object.entries(attrs))s+=` ${k}="${v}"`;return s+"/>"}).join("")}</svg>`
-  }});
-}
 
 const Card=({children,className=""})=>e("div",{className:`bg-slate-800/60 border border-slate-700/50 rounded-xl p-4 ${className}`},children);
 const Badge=({color,children})=>{
@@ -63,24 +53,23 @@ const Tip=({active,payload,label,formatter})=>{
       e("span",{className:"text-slate-300"},p.name+":"),
       e("span",{className:"text-white font-medium"},formatter?formatter(p.value):p.value))))};
 
-// ── Health ──
 function HealthTab({health,stats,state}){
   if(!health)return e("div",{className:"grid grid-cols-4 gap-4"},...[0,1,2,3].map(i=>e(Skel,{key:i,className:"h-24"})));
-  const svcs=[["vault-mcp",health.status||"ok","server"],["D1",health.d1==="connected"?"ok":"error","database"],
-    ["KV",health.kv==="connected"?"ok":"error","cpu"],["Executor",health.executor==="reachable"?"ok":"error","zap"]];
+  const svcs=[["vault-mcp",health.status||"ok","🔧"],["D1",health.d1==="connected"?"ok":"error","🗄️"],
+    ["KV",health.kv==="connected"?"ok":"error","📦"],["Executor",health.executor==="reachable"?"ok":"error","⚡"]];
   const cb=stats?.circuit_breaker||{};
   return e("div",{className:"space-y-4"},
     e("div",{className:"grid grid-cols-2 md:grid-cols-4 gap-3"},
       ...svcs.map(([name,status,ic])=>e(Card,{key:name},
         e("div",{className:"flex items-center gap-2 mb-2"},
-          e("span",{className:`${status==="ok"?"text-emerald-400":"text-red-400"}`},icon(ic)),
+          e("span",null,ic),
           e("span",{className:"text-sm text-white font-medium"},name)),
         e("div",{className:"flex items-center gap-2"},
           e("span",{className:`text-xs ${status==="ok"?"text-emerald-400":"text-red-400"}`},status==="ok"?"● connected":"● error"))))),
     e("div",{className:"grid grid-cols-1 md:grid-cols-3 gap-3"},
       e(Card,null,
         e("div",{className:"flex items-center gap-2 mb-2"},
-          e("span",{className:cb.halted?"text-red-400":"text-emerald-400"},icon("shield")),
+          e("span",null,"🛡️"),
           e("span",{className:"text-sm text-white font-medium"},"Circuit Breaker")),
         statusBadge(cb.halted?"halted":"ok"),
         e("div",{className:"mt-2 space-y-1 text-xs text-slate-400"},
@@ -93,7 +82,6 @@ function HealthTab({health,stats,state}){
         e("div",{className:"text-xs text-slate-400 mb-1"},"Recent Closed"),
         e("div",{className:"text-2xl font-semibold text-white"},state?.recent_closed?.length??0))))}
 
-// ── Cost ──
 function CostTab({stats}){
   if(!stats)return e("div",{className:"space-y-4"},e(Skel,{className:"h-64"}),e(Skel,{className:"h-64"}));
   const total=(stats.task_counts||[]).reduce((a,t)=>a+(t.total_cost||0),0);
@@ -133,7 +121,6 @@ function CostTab({stats}){
             e(Tooltip,{content:p=>Tip({...p,formatter:fmt$})}),
             e(Bar,{dataKey:"total_cost",name:"Cost",fill:"#10b981",radius:[0,4,4,0]}))))))}
 
-// ── Leaderboard ──
 function LeaderboardTab({stats}){
   if(!stats)return e(Skel,{className:"h-96"});
   const board=(stats.leaderboard||[]).map(m=>({...m,name:short(m.model),efficiency:m.avg_cost>0?(1/m.avg_cost).toFixed(1):"—"}));
@@ -172,12 +159,11 @@ function LeaderboardTab({stats}){
           e(Bar,{yAxisId:"c",dataKey:"avg_cost",name:"Avg Cost",fill:"#3b82f6",radius:[4,4,0,0]}),
           e(Bar,{yAxisId:"l",dataKey:"avg_latency_ms",name:"Avg Latency",fill:"#f59e0b",radius:[4,4,0,0]})))))}
 
-// ── Tasks ──
 function TaskRow({task}){
   const[open,setOpen]=useState(false);
   return e("div",{className:"border-b border-slate-800"},
     e("div",{className:"flex items-center gap-3 py-2.5 px-3 hover:bg-slate-700/20 cursor-pointer",onClick:()=>setOpen(!open)},
-      e("span",{className:"text-slate-500 text-xs"},open?"▾":"▸"),
+      e("span",{className:"text-slate-500 text-xs w-4"},open?"▾":"▸"),
       typeBadge(task.task_type),statusBadge(task.status),
       Badge({color:"gray",children:task.complexity}),
       e("span",{className:"flex-1 text-xs text-slate-400 font-mono truncate"},task.id),
@@ -208,7 +194,6 @@ function TasksTab({stats}){
         tasks.length===0?e("div",{className:"text-center text-slate-500 text-sm py-8"},"No tasks"):
           tasks.map(t=>e(TaskRow,{key:t.id,task:t})))))}
 
-// ── Analytics ──
 function AnalyticsTab({stats}){
   if(!stats)return e(Skel,{className:"h-96"});
   const byDay=(stats.cost_by_day||[]).slice(0,14).reverse();
@@ -249,11 +234,10 @@ function AnalyticsTab({stats}){
                   background:p.success>=.8?"#10b981":p.success>=.5?"#f59e0b":"#ef4444"}})),
               e("span",{className:"w-10 text-right text-slate-300"},fmtPct(p.success))))))))}
 
-// ── Settings Modal ──
-function Settings({url,setUrl,token,setToken,onClose}){
+function SettingsModal({url,setUrl,token,setToken,onClose}){
   return e("div",{className:"fixed inset-0 bg-black/60 z-50 flex items-center justify-center",onClick:onClose},
     e("div",{className:"bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-md shadow-2xl",onClick:ev=>ev.stopPropagation()},
-      e("h2",{className:"text-white text-lg font-semibold mb-4"},"Settings"),
+      e("h2",{className:"text-white text-lg font-semibold mb-4"},"⚙️ Settings"),
       e("div",{className:"space-y-4"},
         e("div",null,
           e("label",{className:"text-xs text-slate-400 block mb-1"},"vault-mcp URL"),
@@ -268,7 +252,6 @@ function Settings({url,setUrl,token,setToken,onClose}){
       e("div",{className:"flex justify-end mt-6"},
         e("button",{onClick:onClose,className:"px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-lg"},"Done"))))}
 
-// ── Main ──
 function Dashboard(){
   const[tab,setTab]=useState("health");
   const[url,setUrl]=useState(localStorage.getItem("vault_url")||"https://vault.deltaops.dev");
@@ -289,7 +272,7 @@ function Dashboard(){
   const hdrs=useCallback(()=>{const h={"Content-Type":"application/json"};if(token)h["Authorization"]="Bearer "+token;return h},[token]);
 
   const fetchAll=useCallback(async()=>{
-    if(!token){setError("Set Bearer token in Settings");return}
+    if(!token){setError("Set Bearer token in ⚙️ Settings");return}
     setLoading(true);setError(null);
     try{
       const[hR,sR,stR]=await Promise.allSettled([
@@ -315,12 +298,11 @@ function Dashboard(){
   useEffect(()=>{if(!token)setShowSettings(true)},[]);
 
   return e("div",{className:"min-h-screen bg-slate-950 text-white"},
-    showSettings&&e(Settings,{url,setUrl,token,setToken,onClose:()=>setShowSettings(false)}),
-    // Header
+    showSettings&&e(SettingsModal,{url,setUrl,token,setToken,onClose:()=>setShowSettings(false)}),
     e("div",{className:"border-b border-slate-800 px-4 py-3"},
       e("div",{className:"max-w-7xl mx-auto flex items-center justify-between"},
         e("div",{className:"flex items-center gap-3"},
-          e("span",{className:"text-blue-400"},icon("server","w-5 h-5")),
+          e("span",{className:"text-xl"},"🔧"),
           e("h1",{className:"text-lg font-semibold"},"Infrastructure Dashboard"),
           lastFetch&&e("span",{className:"text-xs text-slate-500"},ago(lastFetch.toISOString()))),
         e("div",{className:"flex items-center gap-2"},
@@ -328,16 +310,13 @@ function Dashboard(){
           e("button",{onClick:()=>setAutoRefresh(!autoRefresh),
             className:`flex items-center gap-1 text-xs px-2 py-1 rounded ${autoRefresh?"bg-emerald-500/20 text-emerald-400":"bg-slate-700 text-slate-400"}`},
             autoRefresh?`● ${countdown}s`:"Auto off"),
-          e("button",{onClick:fetchAll,disabled:loading,className:"p-1.5 rounded hover:bg-slate-800"},
-            e("span",{className:`text-slate-400 ${loading?"spin":""}`},icon("refresh-cw"))),
-          e("button",{onClick:()=>setShowSettings(true),className:"p-1.5 rounded hover:bg-slate-800"},
-            e("span",{className:"text-slate-400"},icon("settings")))))),
-    // Tabs
+          e("button",{onClick:fetchAll,disabled:loading,className:"p-1.5 rounded hover:bg-slate-800 text-slate-400"},
+            e("span",{className:loading?"spin inline-block":"inline-block"},"↻")),
+          e("button",{onClick:()=>setShowSettings(true),className:"p-1.5 rounded hover:bg-slate-800 text-slate-400"},"⚙️")))),
     e("div",{className:"border-b border-slate-800 px-4"},
       e("div",{className:"max-w-7xl mx-auto flex gap-1"},
         ...TABS.map(([id,label])=>e("button",{key:id,onClick:()=>setTab(id),
           className:`px-3 py-2.5 text-sm border-b-2 transition-colors ${tab===id?"border-blue-500 text-blue-400":"border-transparent text-slate-400 hover:text-slate-200"}`},label)))),
-    // Content
     e("div",{className:"max-w-7xl mx-auto px-4 py-4"},
       tab==="health"&&e(HealthTab,{health,stats,state}),
       tab==="cost"&&e(CostTab,{stats}),
