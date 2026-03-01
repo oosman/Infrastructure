@@ -6,7 +6,7 @@ import { getChooserRecommendation, ruleBasedRoute } from "../logic/chooser";
 
 const MODEL_PRICING: Record<string, { input_per_1m: number; output_per_1m: number }> = {
   "claude-opus-4-20250514": { input_per_1m: 15.0, output_per_1m: 75.0 },
-  "claude-sonnet-4-20250514": { input_per_1m: 3.0, output_per_1m: 15.0 },
+  "claude-sonnet-4-6": { input_per_1m: 3.0, output_per_1m: 15.0 },
   "claude-haiku-4-5-20251001": { input_per_1m: 0.80, output_per_1m: 4.0 },
   "gpt-4o": { input_per_1m: 2.50, output_per_1m: 10.0 },
   "o3": { input_per_1m: 10.0, output_per_1m: 40.0 },

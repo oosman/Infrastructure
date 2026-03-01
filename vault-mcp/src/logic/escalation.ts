@@ -1,5 +1,5 @@
 // Model escalation ladder and retry logic
-// Plan: DeepSeek → Flash → 3.1 Pro → Codex → Sonnet 4.5 → Opus 4.6 → Consensus → Human
+// Plan: DeepSeek → Flash → 3.1 Pro → Codex → Sonnet 4.6 → Opus 4.6 → Consensus → Human
 
 // Each rung maps to an executor + model pair the VM can run
 export interface LadderRung {

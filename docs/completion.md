@@ -190,9 +190,9 @@
 - Gateway scope: classification calls only. Executor CLI calls (claude/codex/gemini) go direct to providers via OAuth/API keys — by design, CLIs need local auth and complete environments.
 - Gateway value is foundational plumbing today. Once Mermaid compression protocol validates ~100x on JSON summaries → executor switches from CLI OAuth to direct API calls → all provider traffic routes through gateway → full cost analytics, caching, and rate limiting become operational. Gate G1 trigger: Mermaid validation complete.
 - Gateway: skipCache=false + cacheTtl=3600 (cache identical classifications), metadata includes task_id
-- Model ladder upgraded: Sonnet 4.5→4.6, Gemini 2.5 Pro→3.1 Pro ($2/$12), default repo fallback added
+- Model ladder upgraded: Sonnet 4.6, Gemini 2.5 Pro→3.1 Pro ($2/$12), default repo fallback added
 - Executor diagnosis: Codex blocked by ProtectSystem=strict (Phase 5 fix), Gemini CLI hangs (Phase 5 fix)
-- Model ladder upgraded: Sonnet 4.5→4.6 (claude-sonnet-4-6), Gemini 2.5 Pro→3.1 Pro (gemini-3.1-pro-preview), pricing updated
+- Model ladder upgraded: Sonnet 4.6 (claude-sonnet-4-6), Gemini 2.5 Pro→3.1 Pro (gemini-3.1-pro-preview), pricing updated
 
 ### Files Created/Modified
 - vault-mcp/src/logic/classify.ts (new) — classification via Workers AI

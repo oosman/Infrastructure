@@ -56,7 +56,7 @@ export function ruleBasedRoute(params: ChooserParams): Recommendation {
   // Complex tasks → opus
   if (complexity === "complex") {
     return {
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       method: "rule-based",
       confidence: "medium",
       reasoning: `Complex ${task_type} — sonnet for balance of quality and cost`,
@@ -66,7 +66,7 @@ export function ruleBasedRoute(params: ChooserParams): Recommendation {
   // Large context → sonnet (handles it well)
   if (context_tokens && context_tokens > 100000) {
     return {
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       method: "rule-based",
       confidence: "medium",
       reasoning: `Large context (${context_tokens} tokens) — sonnet for extended context handling`,
@@ -95,7 +95,7 @@ export function ruleBasedRoute(params: ChooserParams): Recommendation {
 
   // Default → sonnet
   return {
-    model: "claude-sonnet-4-20250514",
+    model: "claude-sonnet-4-6",
     method: "rule-based",
     confidence: "medium",
     reasoning: `${complexity} ${task_type} — sonnet as default balance`,
