@@ -111,4 +111,6 @@ nav:
       - decisions/0029-cli-strict-mcp-workaround.md
       - decisions/0030-portal-adopt-consolidation.md
       - decisions/0031-session-canary-degraded-mode.md
+  - Transcripts:
+      - transcripts/2026-02-27-project-bootstrap-setup.md
   - Tags: tags.md
