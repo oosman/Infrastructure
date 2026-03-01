@@ -28,14 +28,33 @@ def main():
     if not msg or "entries" not in msg:
         send_message({"status": "error", "reason": "no entries"})
         return
-    
+
     JSONL_FILE.parent.mkdir(parents=True, exist_ok=True)
     count = 0
     with open(JSONL_FILE, "a") as f:
         for entry in msg["entries"]:
+            # v2 entries have conversation_id, turn_number, etc.
+            # Split into user + assistant rows for D1 compatibility,
+            # but also write the full entry for reconstruction.
+            
+            # Write full entry (for session reconstruction)
             f.write(json.dumps(entry) + "\n")
             count += 1
-    
+
+            # If it has full_history, write a separate snapshot entry
+            if "full_history" in entry:
+                snapshot = {
+                    "session_date": entry.get("session_date"),
+                    "conversation_id": entry.get("conversation_id"),
+                    "role": "_snapshot",
+                    "content": json.dumps(entry["full_history"]),
+                    "turn_number": entry.get("turn_number"),
+                    "is_branch": entry.get("is_branch", False),
+                    "created_at": entry.get("created_at"),
+                }
+                f.write(json.dumps(snapshot) + "\n")
+                count += 1
+
     send_message({"status": "ok", "written": count})
 
 if __name__ == "__main__":
