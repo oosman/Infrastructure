@@ -5,84 +5,79 @@
 - `CLAUDE.md` — repo context
 
 ## Context
-Phases 0-7 complete (assuming 7 runs in parallel). vault-mcp has checkpoint tool (load/save/decide) already working with D1. Dotfiles have 15 slash commands including `/handoff`, `/done`, `/capture`, `/recall`. Compaction triggers at 90% context (CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=90).
+Phases 0-7 complete. This phase targets **Claude.ai sessions** (the orchestrator), not CC agents. Claude.ai has no slash commands, no hooks, no settings.json. It has: project instructions, project files, MCP tools (vault-mcp, mac-mcp, portal), memory, and conversation context.
+
+## The Problem
+Claude.ai sessions lose context through:
+1. **Compaction** — context window fills up, older messages get summarized/dropped
+2. **Session boundaries** — new conversation = blank slate except memory + project files
+3. **vault-mcp outages** — if MCP tools fail, no task tracking or checkpoints
 
 ## What Already Exists
-- `vault-mcp/src/tools/checkpoint.ts` — full implementation: load (latest from D1), save (builds recovery doc with open tasks + decisions + blockers), decide (records to D1 decisions table)
-- `/done` command, `/handoff` command, `/capture` command in dotfiles
-- `settings.json` with compaction hooks (autocompact at 90%)
-- `docs/completion.md` as canonical session ledger
-- `docs/memory-layer.md` documenting 3-layer memory model
+- vault-mcp checkpoint tool: `load` (recovery doc from D1), `save` (captures open tasks + decisions + blockers), `decide` (records decisions)
+- `docs/completion.md` in project files — canonical ledger
+- Claude.ai memory system (userMemories) — persists across sessions
+- Project instructions (this session prompt pattern) — read-only context
 
 ## What Phase 8 Delivers
 
-### 8.1 Session Canary Protocol
-First MCP tool call every session should be `task(action: "list")` as a health check. Implement:
-- In CLAUDE.md session protocol: add "Step 0: call task list as canary"
-- If vault-mcp unreachable → log warning, enter degraded mode
-- Degraded mode: tasks written to local `.claude/tasks-fallback.md`, checkpoint to local file
+### 8.1 Session Canary
+Add to **project instructions** (the system prompt Osama configures in Claude.ai):
+> On session start: call `health` tool via vault-mcp. If it fails, inform user that vault-mcp is unreachable and you're operating in degraded mode (no D1 logging, no checkpoints).
 
-### 8.2 Degraded Mode Fallback
-When vault-mcp is down, sessions should still function:
-- Task tracking falls back to local markdown in `~/.claude/tasks-fallback.md`
-- Checkpoints fall back to `~/.claude/checkpoints-fallback.md`
-- On vault-mcp recovery: reconcile local fallback with D1 (manual or slash command)
+This is a behavioral instruction, not code. Update the project instructions text to include it.
 
-### 8.3 Compaction Survival Improvements
-Current hooks trigger at 90%. Improve:
-- `/compact` command: manually trigger checkpoint save + summary before compaction
-- Ensure compaction summary includes: current objective, open tasks, recent decisions, file paths modified
-- Test: start session, do work, trigger compaction, verify recovery from checkpoint
+### 8.2 Degraded Mode Behavior
+Define what Claude.ai does when vault-mcp is down — again, project instructions:
+- Track tasks via Mac MCP: `write_file` to `~/Developer/infrastructure/.fallback/tasks.md`
+- Save checkpoints to: `write_file` to `~/Developer/infrastructure/.fallback/checkpoint.md`
+- On recovery: read fallback files and reconcile with vault-mcp
 
-### 8.4 Session Handoff Quality
-Improve `/handoff` command output:
-- Include vault-mcp checkpoint (call save automatically)
-- Include recent git log (last 5 commits)
-- Include open tasks from D1
-- Output as structured markdown suitable for next session's context
+### 8.3 Pre-Compaction Checkpoint
+Claude.ai can't detect compaction programmatically. Instead:
+- Add to project instructions: "When context is getting long (you've been working for a while), proactively save a checkpoint via vault-mcp before the system compacts."
+- Template the checkpoint content: current objective, what's done this session, what's next, key file paths modified, recent decisions
+- This is behavioral guidance, not automation
 
-### 8.5 Dashboard (React Artifact or HTML)
-Simple monitoring view with:
-- Cost overview: spend by model, by day, by task type (from D1 stages table)
-- Task history: recent tasks with status, cost, latency
-- Circuit breaker status: current daily/monthly accumulation vs limits
-- Health: all services status
+### 8.4 Session Handoff Protocol
+When a session ends (user says "done" or "wrapping up"):
+1. Call `checkpoint(action: "save")` with objective, recent_actions, blockers
+2. Update `docs/completion.md` via Mac MCP (write_file) with anything completed
+3. Summarize: what changed, what's next, any blockers
+4. The NEXT session can call `checkpoint(action: "load")` to recover
 
-Data source: vault-mcp `workflow_query(query: "stats")` + `health()` tools.
+Document this protocol in project instructions.
 
-This can be a React artifact in Claude.ai or a standalone HTML page. Keep simple — this is for the operator (Osama), not end users.
+### 8.5 Dashboard (React Artifact)
+Build a React artifact (.jsx) that Claude.ai can render inline. It should:
+- Call vault-mcp tools: `workflow_query(query: "stats")`, `health()`, `task(action: "list")`
+- Display: cost by model/day, recent tasks, circuit breaker status, service health
+- Use Anthropic API-in-artifacts to make vault-mcp calls OR accept pre-fetched data as props
 
-## Steps
-1. Update CLAUDE.md session protocol with canary
-2. Create fallback mechanism (local files when vault-mcp down)
-3. Enhance `/compact` command
-4. Enhance `/handoff` command to auto-checkpoint
-5. Build dashboard artifact
-6. Test: full session lifecycle (start → work → compact → handoff → new session → recover)
+**Important:** This is a Claude.ai artifact, not a deployed web app. It renders in the chat.
 
-## File Locations
-- Dotfiles commands: ~/Developer/dotfiles/claude/commands/
-- Dotfiles hooks: ~/Developer/dotfiles/claude/hooks/
-- Settings: ~/Developer/dotfiles/claude/settings.json
-- CLAUDE.md (global): ~/Developer/dotfiles/claude/CLAUDE.md
-- CLAUDE.md (repo): ~/Developer/infrastructure/CLAUDE.md
-- vault-mcp checkpoint: vault-mcp/src/tools/checkpoint.ts (don't rewrite — extend if needed)
+## Deliverables (all are text/docs, not code deployments)
+1. Updated project instructions text (for Osama to paste into Claude.ai project settings)
+2. `.fallback/` directory created with README
+3. Dashboard React artifact file (can be kept in repo for reuse)
+4. `docs/completion.md` updated with Phase 8 items
+5. `docs/memory-layer.md` updated to reflect actual Claude.ai patterns (not CC patterns)
 
-## Credentials
-- Dotfiles repo: ~/Developer/dotfiles/ (git)
-- Infrastructure repo: ~/Developer/infrastructure/ (git)
+## What This Phase Does NOT Do
+- No CC slash commands (those already exist, separate concern)
+- No compaction hooks (Claude.ai doesn't support them)
+- No settings.json changes (CC only)
+- No vault-mcp code changes (checkpoint tool works fine)
 
 ## Validation Criteria
-- [ ] Session canary fires on session start (task list call)
-- [ ] Degraded mode works when vault-mcp is unreachable
-- [ ] `/compact` saves checkpoint before compaction
-- [ ] `/handoff` output includes checkpoint + git log + open tasks
-- [ ] Dashboard shows cost, tasks, circuit breaker, health
-- [ ] Full lifecycle test: start → work → compact → handoff → new session → recover from checkpoint
+- [ ] Project instructions include: canary, degraded mode, pre-compaction checkpoint, handoff protocol
+- [ ] `.fallback/` directory exists with README explaining purpose
+- [ ] Dashboard artifact renders in Claude.ai with task/cost/health data
+- [ ] `docs/memory-layer.md` accurately describes Claude.ai context persistence (not CC)
+- [ ] Full lifecycle test: start session → load checkpoint → do work → save checkpoint → end session → start new session → load checkpoint → verify continuity
 
 ## Rules
-- Model: sonnet for CC agents
-- Don't rewrite checkpoint.ts — it works. Extend or add new files.
-- Don't break existing slash commands — enhance them.
-- Update docs/completion.md with results before ending.
-- Commit messages: `feat: phase 8 — [specific item]`
+- This is a documentation/instructions phase, minimal code
+- Don't modify vault-mcp (checkpoint tool works)
+- Update docs/completion.md with results
+- Commit: `feat: phase 8 — context continuity for claude.ai sessions`
