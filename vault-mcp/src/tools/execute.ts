@@ -17,7 +17,7 @@ function estimateCost(metrics: any, executor?: string): number {
   const rates: Record<string, { input: number; output: number }> = {
     claude: { input: 3.0, output: 15.0 },
     codex: { input: 2.5, output: 10.0 },
-    gemini: { input: 1.25, output: 5.0 },
+    gemini: { input: 2.0, output: 12.0 },
   };
   const r = rates[executor ?? "claude"] ?? rates.claude;
   return (input * r.input + output * r.output) / 1_000_000;
@@ -28,9 +28,9 @@ function estimateCost(metrics: any, executor?: string): number {
 // ============================================================
 function inferDefaultModel(executor?: string): string {
   const defaults: Record<string, string> = {
-    claude: "claude-sonnet-4-5-20250929",
+    claude: "claude-sonnet-4-6",
     codex: "gpt-5.3-codex",
-    gemini: "gemini-2.5-pro",
+    gemini: "gemini-3.1-pro-preview",
     consensus: "consensus",
   };
   return defaults[executor ?? "claude"] ?? "unknown";
