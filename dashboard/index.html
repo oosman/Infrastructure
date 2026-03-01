@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Infrastructure Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config={theme:{extend:{}}}</script>
+<style>body{margin:0;background:#020617;color:#fff;font-family:system-ui,-apple-system,sans-serif}
+.spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+.pulse{animation:pulse 2s ease-in-out infinite}@keyframes pulse{0%,100%{opacity:.5}50%{opacity:.3}}</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const e=React.createElement,{useState,useEffect,useCallback,useRef}=React;
+const{BarChart,Bar,LineChart,Line,PieChart,Pie,Cell,XAxis,YAxis,Tooltip,ResponsiveContainer,CartesianGrid,Legend}=Recharts;
+
+const COLORS=["#3b82f6","#10b981","#f59e0b","#ef4444","#8b5cf6","#ec4899","#06b6d4","#84cc16"];
+const TABS=[["health","Health"],["cost","Cost"],["leaderboard","Leaderboard"],["tasks","Tasks"],["analytics","Analytics"]];
+
+const short=m=>m?.replace("claude-","").replace(/-2025\d{4}/,"").replace("-preview","")??"—";
+const fmt$=n=>n==null?"—":n<.01?`$${n.toFixed(4)}`:`$${n.toFixed(2)}`;
+const fmtMs=ms=>ms==null?"—":ms<1000?`${Math.round(ms)}ms`:`${(ms/1000).toFixed(1)}s`;
+const fmtPct=n=>n==null?"—":`${(n*100).toFixed(0)}%`;
+const ago=iso=>{if(!iso)return"—";const s=Math.floor((Date.now()-new Date(iso).getTime())/1000);
+  if(s<60)return`${s}s ago`;if(s<3600)return`${Math.floor(s/60)}m ago`;
+  if(s<86400)return`${Math.floor(s/3600)}h ago`;return`${Math.floor(s/86400)}d ago`};
+
+function icon(name,cls="w-4 h-4"){
+  const svg=lucide.icons[name];
+  if(!svg)return null;
+  return e("span",{className:cls+" inline-block",dangerouslySetInnerHTML:{
+    __html:`<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svg[1].map(([tag,attrs])=>{let s=`<${tag}`;for(const[k,v]of Object.entries(attrs))s+=` ${k}="${v}"`;return s+"/>"}).join("")}</svg>`
+  }});
+}
+
+const Card=({children,className=""})=>e("div",{className:`bg-slate-800/60 border border-slate-700/50 rounded-xl p-4 ${className}`},children);
+const Badge=({color,children})=>{
+  const c={emerald:"bg-emerald-500/20 text-emerald-400 border-emerald-500/30",amber:"bg-amber-500/20 text-amber-400 border-amber-500/30",
+    red:"bg-red-500/20 text-red-400 border-red-500/30",blue:"bg-blue-500/20 text-blue-400 border-blue-500/30",
+    purple:"bg-purple-500/20 text-purple-400 border-purple-500/30",gray:"bg-gray-500/20 text-gray-400 border-gray-500/30"};
+  return e("span",{className:`text-xs px-2 py-0.5 rounded-full border ${c[color]||c.gray}`},children)};
+const statusBadge=s=>{const m={closed:"emerald",open:"blue",in_progress:"amber",ok:"emerald",degraded:"amber",error:"red",halted:"red"};return Badge({color:m[s]||"gray",children:s})};
+const typeBadge=t=>{const m={fix:"red",feature:"blue",test:"emerald",refactor:"purple",review:"amber",docs:"gray"};return Badge({color:m[t]||"gray",children:t})};
+const Skel=({className=""})=>e("div",{className:`pulse bg-slate-700/50 rounded ${className}`});
+
+const Stat=({label,value,sub})=>e(Card,null,
+  e("div",{className:"text-xs text-slate-400 uppercase tracking-wider mb-1"},label),
+  e("div",{className:"text-2xl font-semibold text-white"},value),
+  sub&&e("div",{className:"text-xs text-slate-400 mt-1"},sub));
+
+const Tip=({active,payload,label,formatter})=>{
+  if(!active||!payload?.length)return null;
+  return e("div",{className:"bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs shadow-xl"},
+    e("div",{className:"text-slate-400 mb-1"},label),
+    ...payload.map((p,i)=>e("div",{key:i,className:"flex items-center gap-2"},
+      e("div",{className:"w-2 h-2 rounded-full",style:{background:p.color}}),
+      e("span",{className:"text-slate-300"},p.name+":"),
+      e("span",{className:"text-white font-medium"},formatter?formatter(p.value):p.value))))};
+
+// ── Health ──
+function HealthTab({health,stats,state}){
+  if(!health)return e("div",{className:"grid grid-cols-4 gap-4"},...[0,1,2,3].map(i=>e(Skel,{key:i,className:"h-24"})));
+  const svcs=[["vault-mcp",health.status||"ok","server"],["D1",health.d1==="connected"?"ok":"error","database"],
+    ["KV",health.kv==="connected"?"ok":"error","cpu"],["Executor",health.executor==="reachable"?"ok":"error","zap"]];
+  const cb=stats?.circuit_breaker||{};
+  return e("div",{className:"space-y-4"},
+    e("div",{className:"grid grid-cols-2 md:grid-cols-4 gap-3"},
+      ...svcs.map(([name,status,ic])=>e(Card,{key:name},
+        e("div",{className:"flex items-center gap-2 mb-2"},
+          e("span",{className:`${status==="ok"?"text-emerald-400":"text-red-400"}`},icon(ic)),
+          e("span",{className:"text-sm text-white font-medium"},name)),
+        e("div",{className:"flex items-center gap-2"},
+          e("span",{className:`text-xs ${status==="ok"?"text-emerald-400":"text-red-400"}`},status==="ok"?"● connected":"● error"))))),
+    e("div",{className:"grid grid-cols-1 md:grid-cols-3 gap-3"},
+      e(Card,null,
+        e("div",{className:"flex items-center gap-2 mb-2"},
+          e("span",{className:cb.halted?"text-red-400":"text-emerald-400"},icon("shield")),
+          e("span",{className:"text-sm text-white font-medium"},"Circuit Breaker")),
+        statusBadge(cb.halted?"halted":"ok"),
+        e("div",{className:"mt-2 space-y-1 text-xs text-slate-400"},
+          e("div",null,"Total: "+fmt$(cb.total_spent)),
+          e("div",null,"Today: "+fmt$(cb.daily_spent)))),
+      e(Card,null,
+        e("div",{className:"text-xs text-slate-400 mb-1"},"Open Tasks"),
+        e("div",{className:"text-2xl font-semibold text-white"},state?.open_tasks?.length??0)),
+      e(Card,null,
+        e("div",{className:"text-xs text-slate-400 mb-1"},"Recent Closed"),
+        e("div",{className:"text-2xl font-semibold text-white"},state?.recent_closed?.length??0))))}
+
+// ── Cost ──
+function CostTab({stats}){
+  if(!stats)return e("div",{className:"space-y-4"},e(Skel,{className:"h-64"}),e(Skel,{className:"h-64"}));
+  const total=(stats.task_counts||[]).reduce((a,t)=>a+(t.total_cost||0),0);
+  const byDay=(stats.cost_by_day||[]).slice(0,14).reverse();
+  const byModel=(stats.cost_by_model||[]).map(m=>({...m,name:short(m.model)}));
+  const byType=stats.cost_by_task_type||[];
+  return e("div",{className:"space-y-4"},
+    e("div",{className:"grid grid-cols-3 gap-3"},
+      e(Stat,{label:"Total Spend",value:fmt$(total)}),
+      e(Stat,{label:"Stages",value:byModel.reduce((a,m)=>a+(m.count||0),0),sub:"total executions"}),
+      e(Stat,{label:"Today",value:fmt$(stats.circuit_breaker?.daily_spent),sub:"daily spend"})),
+    e(Card,null,
+      e("h3",{className:"text-sm text-slate-300 font-medium mb-3"},"Cost by Day (last 14d)"),
+      e(ResponsiveContainer,{width:"100%",height:220},
+        e(BarChart,{data:byDay},
+          e(CartesianGrid,{strokeDasharray:"3 3",stroke:"#334155"}),
+          e(XAxis,{dataKey:"day",tick:{fill:"#94a3b8",fontSize:10},tickFormatter:d=>d?.slice(5)}),
+          e(YAxis,{tick:{fill:"#94a3b8",fontSize:10},tickFormatter:v=>"$"+v}),
+          e(Tooltip,{content:p=>Tip({...p,formatter:fmt$})}),
+          e(Bar,{dataKey:"total_cost",name:"Cost",fill:"#3b82f6",radius:[4,4,0,0]})))),
+    e("div",{className:"grid grid-cols-1 md:grid-cols-2 gap-4"},
+      e(Card,null,
+        e("h3",{className:"text-sm text-slate-300 font-medium mb-3"},"Cost by Model"),
+        e(ResponsiveContainer,{width:"100%",height:220},
+          e(PieChart,null,
+            e(Pie,{data:byModel,dataKey:"total_cost",nameKey:"name",cx:"50%",cy:"50%",outerRadius:80,
+              label:({name,percent})=>`${name} ${(percent*100).toFixed(0)}%`,labelLine:false},
+              ...byModel.map((_,i)=>e(Cell,{key:i,fill:COLORS[i%COLORS.length]}))),
+            e(Tooltip,{content:p=>Tip({...p,formatter:fmt$})})))),
+      e(Card,null,
+        e("h3",{className:"text-sm text-slate-300 font-medium mb-3"},"Cost by Task Type"),
+        e(ResponsiveContainer,{width:"100%",height:220},
+          e(BarChart,{data:byType,layout:"vertical"},
+            e(CartesianGrid,{strokeDasharray:"3 3",stroke:"#334155"}),
+            e(XAxis,{type:"number",tick:{fill:"#94a3b8",fontSize:10},tickFormatter:v=>"$"+v}),
+            e(YAxis,{type:"category",dataKey:"task_type",tick:{fill:"#94a3b8",fontSize:10},width:60}),
+            e(Tooltip,{content:p=>Tip({...p,formatter:fmt$})}),
+            e(Bar,{dataKey:"total_cost",name:"Cost",fill:"#10b981",radius:[0,4,4,0]}))))))}
+
+// ── Leaderboard ──
+function LeaderboardTab({stats}){
+  if(!stats)return e(Skel,{className:"h-96"});
+  const board=(stats.leaderboard||[]).map(m=>({...m,name:short(m.model),efficiency:m.avg_cost>0?(1/m.avg_cost).toFixed(1):"—"}));
+  const perfByModel={};
+  (stats.model_performance||[]).forEach(p=>{const n=short(p.model);if(!perfByModel[n])perfByModel[n]={s:0,t:0};
+    perfByModel[n].s+=(p.first_attempt_success_rate||0)*(p.total_tasks||0);perfByModel[n].t+=p.total_tasks||0});
+  return e("div",{className:"space-y-4"},
+    e(Card,null,
+      e("h3",{className:"text-sm text-slate-300 font-medium mb-3"},"Model Leaderboard"),
+      e("div",{className:"overflow-x-auto"},
+        e("table",{className:"w-full text-xs"},
+          e("thead",null,e("tr",{className:"text-slate-400 border-b border-slate-700"},
+            ...["#","Model","Stages","Total Cost","Avg Cost","Avg Latency","Success %","Efficiency"].map((h,i)=>
+              e("th",{key:i,className:`py-2 px-2 ${i>1?"text-right":"text-left"}`},h)))),
+          e("tbody",null,...board.map((m,i)=>{
+            const p=perfByModel[m.name]||{};const sr=p.t>0?p.s/p.t:null;
+            return e("tr",{key:i,className:"border-b border-slate-800 hover:bg-slate-700/30"},
+              e("td",{className:"py-2 px-2 text-slate-500"},i+1),
+              e("td",{className:"py-2 px-2 text-white font-medium"},m.name),
+              e("td",{className:"text-right py-2 px-2 text-slate-300"},m.total_stages),
+              e("td",{className:"text-right py-2 px-2 text-slate-300"},fmt$(m.total_cost)),
+              e("td",{className:"text-right py-2 px-2 text-slate-300"},fmt$(m.avg_cost)),
+              e("td",{className:"text-right py-2 px-2 text-slate-300"},fmtMs(m.avg_latency_ms)),
+              e("td",{className:`text-right py-2 px-2 ${sr>=.8?"text-emerald-400":sr>=.5?"text-amber-400":"text-red-400"}`},sr!=null?fmtPct(sr):"—"),
+              e("td",{className:"text-right py-2 px-2 text-blue-400"},m.efficiency))}))))),
+    e(Card,null,
+      e("h3",{className:"text-sm text-slate-300 font-medium mb-3"},"Cost vs Latency"),
+      e(ResponsiveContainer,{width:"100%",height:220},
+        e(BarChart,{data:board},
+          e(CartesianGrid,{strokeDasharray:"3 3",stroke:"#334155"}),
+          e(XAxis,{dataKey:"name",tick:{fill:"#94a3b8",fontSize:10}}),
+          e(YAxis,{yAxisId:"c",tick:{fill:"#94a3b8",fontSize:10},tickFormatter:v=>"$"+v}),
+          e(YAxis,{yAxisId:"l",orientation:"right",tick:{fill:"#94a3b8",fontSize:10},tickFormatter:v=>(v/1000).toFixed(0)+"s"}),
+          e(Tooltip,{content:p=>Tip({...p,formatter:v=>typeof v==="number"&&v>100?fmtMs(v):fmt$(v)})}),
+          e(Legend,{wrapperStyle:{fontSize:10}}),
+          e(Bar,{yAxisId:"c",dataKey:"avg_cost",name:"Avg Cost",fill:"#3b82f6",radius:[4,4,0,0]}),
+          e(Bar,{yAxisId:"l",dataKey:"avg_latency_ms",name:"Avg Latency",fill:"#f59e0b",radius:[4,4,0,0]})))))}
+
+// ── Tasks ──
+function TaskRow({task}){
+  const[open,setOpen]=useState(false);
+  return e("div",{className:"border-b border-slate-800"},
+    e("div",{className:"flex items-center gap-3 py-2.5 px-3 hover:bg-slate-700/20 cursor-pointer",onClick:()=>setOpen(!open)},
+      e("span",{className:"text-slate-500 text-xs"},open?"▾":"▸"),
+      typeBadge(task.task_type),statusBadge(task.status),
+      Badge({color:"gray",children:task.complexity}),
+      e("span",{className:"flex-1 text-xs text-slate-400 font-mono truncate"},task.id),
+      e("span",{className:"text-xs text-slate-300 w-16 text-right"},fmt$(task.total_cost_usd)),
+      e("span",{className:"text-xs text-slate-400 w-16 text-right"},fmtMs(task.total_latency_ms)),
+      e("span",{className:"text-xs text-slate-500 w-16 text-right"},ago(task.created_at))),
+    open&&e("div",{className:"px-12 pb-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs"},
+      e("div",null,e("span",{className:"text-slate-500"},"Model: "),e("span",{className:"text-slate-300"},short(task.final_model))),
+      e("div",null,e("span",{className:"text-slate-500"},"1st attempt: "),e("span",{className:task.first_attempt_success?"text-emerald-400":"text-red-400"},task.first_attempt_success?"✓":"✗")),
+      e("div",null,e("span",{className:"text-slate-500"},"Created: "),e("span",{className:"text-slate-300"},task.created_at?.slice(0,16))),
+      e("div",null,e("span",{className:"text-slate-500"},"Done: "),e("span",{className:"text-slate-300"},task.completed_at?.slice(0,16)||"—"))))}
+
+function TasksTab({stats}){
+  if(!stats)return e(Skel,{className:"h-96"});
+  const tasks=stats.recent_tasks||[];const counts={};
+  (stats.task_counts||[]).forEach(t=>{counts[t.status]=t.count});
+  return e("div",{className:"space-y-4"},
+    e("div",{className:"grid grid-cols-4 gap-3"},
+      e(Stat,{label:"Open",value:counts.open||0}),
+      e(Stat,{label:"In Progress",value:counts.in_progress||0}),
+      e(Stat,{label:"Closed",value:counts.closed||0}),
+      e(Stat,{label:"Total",value:Object.values(counts).reduce((a,b)=>a+b,0)})),
+    e(Card,{className:"p-0"},
+      e("div",{className:"px-4 py-2.5 border-b border-slate-700"},
+        e("span",{className:"text-sm text-slate-300 font-medium"},"Recent Tasks"),
+        e("span",{className:"text-xs text-slate-500 ml-2"},tasks.length+" shown")),
+      e("div",{className:"max-h-96 overflow-y-auto"},
+        tasks.length===0?e("div",{className:"text-center text-slate-500 text-sm py-8"},"No tasks"):
+          tasks.map(t=>e(TaskRow,{key:t.id,task:t})))))}
+
+// ── Analytics ──
+function AnalyticsTab({stats}){
+  if(!stats)return e(Skel,{className:"h-96"});
+  const byDay=(stats.cost_by_day||[]).slice(0,14).reverse();
+  const byModel=(stats.cost_by_model||[]).map(m=>({...m,name:short(m.model)}));
+  const perf=(stats.model_performance||[]).map(p=>({
+    label:`${short(p.model)} / ${p.task_type} / ${p.complexity}`,
+    success:p.first_attempt_success_rate,tasks:p.total_tasks})).filter(p=>p.tasks>=1).slice(0,15);
+  return e("div",{className:"space-y-4"},
+    e(Card,null,
+      e("h3",{className:"text-sm text-slate-300 font-medium mb-3"},"Execution Volume by Day"),
+      e(ResponsiveContainer,{width:"100%",height:200},
+        e(LineChart,{data:byDay},
+          e(CartesianGrid,{strokeDasharray:"3 3",stroke:"#334155"}),
+          e(XAxis,{dataKey:"day",tick:{fill:"#94a3b8",fontSize:10},tickFormatter:d=>d?.slice(5)}),
+          e(YAxis,{tick:{fill:"#94a3b8",fontSize:10}}),
+          e(Tooltip,{content:p=>Tip(p)}),
+          e(Line,{type:"monotone",dataKey:"stage_count",name:"Stages",stroke:"#3b82f6",strokeWidth:2,dot:{fill:"#3b82f6",r:3}})))),
+    e("div",{className:"grid grid-cols-1 md:grid-cols-2 gap-4"},
+      e(Card,null,
+        e("h3",{className:"text-sm text-slate-300 font-medium mb-3"},"Avg Cost by Model"),
+        e(ResponsiveContainer,{width:"100%",height:200},
+          e(BarChart,{data:byModel},
+            e(CartesianGrid,{strokeDasharray:"3 3",stroke:"#334155"}),
+            e(XAxis,{dataKey:"name",tick:{fill:"#94a3b8",fontSize:10}}),
+            e(YAxis,{tick:{fill:"#94a3b8",fontSize:10},tickFormatter:v=>"$"+v}),
+            e(Tooltip,{content:p=>Tip({...p,formatter:fmt$})}),
+            e(Bar,{dataKey:"avg_cost",name:"Avg Cost",radius:[4,4,0,0]},
+              ...byModel.map((_,i)=>e(Cell,{key:i,fill:COLORS[i%COLORS.length]})))))),
+      e(Card,null,
+        e("h3",{className:"text-sm text-slate-300 font-medium mb-3"},"Success Rate by Model × Type"),
+        e("div",{className:"max-h-48 overflow-y-auto"},
+          perf.length===0?e("div",{className:"text-slate-500 text-xs text-center py-4"},"No data"):
+            perf.map((p,i)=>e("div",{key:i,className:"flex items-center gap-2 py-1 text-xs"},
+              e("span",{className:"flex-1 text-slate-400 truncate"},p.label),
+              e("span",{className:"text-slate-500 w-8 text-right"},"n="+p.tasks),
+              e("div",{className:"w-24 bg-slate-700 rounded-full h-2"},
+                e("div",{className:"h-2 rounded-full",style:{width:`${(p.success||0)*100}%`,
+                  background:p.success>=.8?"#10b981":p.success>=.5?"#f59e0b":"#ef4444"}})),
+              e("span",{className:"w-10 text-right text-slate-300"},fmtPct(p.success))))))))}
+
+// ── Settings Modal ──
+function Settings({url,setUrl,token,setToken,onClose}){
+  return e("div",{className:"fixed inset-0 bg-black/60 z-50 flex items-center justify-center",onClick:onClose},
+    e("div",{className:"bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-md shadow-2xl",onClick:ev=>ev.stopPropagation()},
+      e("h2",{className:"text-white text-lg font-semibold mb-4"},"Settings"),
+      e("div",{className:"space-y-4"},
+        e("div",null,
+          e("label",{className:"text-xs text-slate-400 block mb-1"},"vault-mcp URL"),
+          e("input",{type:"text",value:url,onChange:ev=>setUrl(ev.target.value),
+            className:"w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500",
+            placeholder:"https://vault.deltaops.dev"})),
+        e("div",null,
+          e("label",{className:"text-xs text-slate-400 block mb-1"},"Bearer Token"),
+          e("input",{type:"password",value:token,onChange:ev=>setToken(ev.target.value),
+            className:"w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500",
+            placeholder:"paste token here"}))),
+      e("div",{className:"flex justify-end mt-6"},
+        e("button",{onClick:onClose,className:"px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-lg"},"Done"))))}
+
+// ── Main ──
+function Dashboard(){
+  const[tab,setTab]=useState("health");
+  const[url,setUrl]=useState(localStorage.getItem("vault_url")||"https://vault.deltaops.dev");
+  const[token,setToken]=useState(localStorage.getItem("vault_token")||"");
+  const[showSettings,setShowSettings]=useState(false);
+  const[autoRefresh,setAutoRefresh]=useState(true);
+  const[countdown,setCountdown]=useState(60);
+  const[loading,setLoading]=useState(false);
+  const[error,setError]=useState(null);
+  const[health,setHealth]=useState(null);
+  const[stats,setStats]=useState(null);
+  const[state,setState]=useState(null);
+  const[lastFetch,setLastFetch]=useState(null);
+
+  useEffect(()=>{if(url)localStorage.setItem("vault_url",url)},[url]);
+  useEffect(()=>{if(token)localStorage.setItem("vault_token",token)},[token]);
+
+  const hdrs=useCallback(()=>{const h={"Content-Type":"application/json"};if(token)h["Authorization"]="Bearer "+token;return h},[token]);
+
+  const fetchAll=useCallback(async()=>{
+    if(!token){setError("Set Bearer token in Settings");return}
+    setLoading(true);setError(null);
+    try{
+      const[hR,sR,stR]=await Promise.allSettled([
+        fetch(url+"/health",{headers:hdrs()}).then(r=>r.json()),
+        fetch(url+"/workflow/stats",{headers:hdrs()}).then(r=>r.json()),
+        fetch(url+"/workflow/state/current",{headers:hdrs()}).then(r=>r.json())]);
+      if(hR.status==="fulfilled")setHealth(hR.value);
+      if(sR.status==="fulfilled")setStats(sR.value);
+      if(stR.status==="fulfilled")setState(stR.value);
+      if(hR.status==="rejected"&&sR.status==="rejected")throw new Error("All fetches failed");
+      setLastFetch(new Date());
+    }catch(err){setError(err.message||"Fetch failed")}
+    finally{setLoading(false);setCountdown(60)}
+  },[url,token,hdrs]);
+
+  useEffect(()=>{
+    if(!autoRefresh||!token)return;
+    const id=setInterval(()=>{setCountdown(c=>{if(c<=1){fetchAll();return 60}return c-1})},1000);
+    return()=>clearInterval(id);
+  },[autoRefresh,token,fetchAll]);
+
+  useEffect(()=>{if(token)fetchAll()},[token]);
+  useEffect(()=>{if(!token)setShowSettings(true)},[]);
+
+  return e("div",{className:"min-h-screen bg-slate-950 text-white"},
+    showSettings&&e(Settings,{url,setUrl,token,setToken,onClose:()=>setShowSettings(false)}),
+    // Header
+    e("div",{className:"border-b border-slate-800 px-4 py-3"},
+      e("div",{className:"max-w-7xl mx-auto flex items-center justify-between"},
+        e("div",{className:"flex items-center gap-3"},
+          e("span",{className:"text-blue-400"},icon("server","w-5 h-5")),
+          e("h1",{className:"text-lg font-semibold"},"Infrastructure Dashboard"),
+          lastFetch&&e("span",{className:"text-xs text-slate-500"},ago(lastFetch.toISOString()))),
+        e("div",{className:"flex items-center gap-2"},
+          error&&e("span",{className:"text-xs text-red-400 mr-2"},error),
+          e("button",{onClick:()=>setAutoRefresh(!autoRefresh),
+            className:`flex items-center gap-1 text-xs px-2 py-1 rounded ${autoRefresh?"bg-emerald-500/20 text-emerald-400":"bg-slate-700 text-slate-400"}`},
+            autoRefresh?`● ${countdown}s`:"Auto off"),
+          e("button",{onClick:fetchAll,disabled:loading,className:"p-1.5 rounded hover:bg-slate-800"},
+            e("span",{className:`text-slate-400 ${loading?"spin":""}`},icon("refresh-cw"))),
+          e("button",{onClick:()=>setShowSettings(true),className:"p-1.5 rounded hover:bg-slate-800"},
+            e("span",{className:"text-slate-400"},icon("settings")))))),
+    // Tabs
+    e("div",{className:"border-b border-slate-800 px-4"},
+      e("div",{className:"max-w-7xl mx-auto flex gap-1"},
+        ...TABS.map(([id,label])=>e("button",{key:id,onClick:()=>setTab(id),
+          className:`px-3 py-2.5 text-sm border-b-2 transition-colors ${tab===id?"border-blue-500 text-blue-400":"border-transparent text-slate-400 hover:text-slate-200"}`},label)))),
+    // Content
+    e("div",{className:"max-w-7xl mx-auto px-4 py-4"},
+      tab==="health"&&e(HealthTab,{health,stats,state}),
+      tab==="cost"&&e(CostTab,{stats}),
+      tab==="leaderboard"&&e(LeaderboardTab,{stats}),
+      tab==="tasks"&&e(TasksTab,{stats}),
+      tab==="analytics"&&e(AnalyticsTab,{stats})))}
+
+ReactDOM.render(e(Dashboard),document.getElementById("root"));
+</script>
+</body>
+</html>
