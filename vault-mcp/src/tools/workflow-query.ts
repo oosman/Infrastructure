@@ -55,7 +55,7 @@ async function getSessionState(db: D1Database) {
 }
 
 async function getStats(db: D1Database) {
-  const [taskCounts, costByModel, modelPerf, cb] = await Promise.all([
+  const [taskCounts, costByModel, modelPerf, cb, costByDay, costByType, recentTasks, leaderboard] = await Promise.all([
     db.prepare(
       "SELECT status, COUNT(*) as count, SUM(total_cost_usd) as total_cost FROM tasks GROUP BY status",
     ).all(),
@@ -66,12 +66,35 @@ async function getStats(db: D1Database) {
       "SELECT model, task_type, complexity, total_tasks, first_attempt_success_rate, human_correction_rate, avg_cost_usd FROM model_stats ORDER BY total_tasks DESC LIMIT 20",
     ).all(),
     getCircuitBreakerState(db),
+    db.prepare(
+      "SELECT DATE(created_at) as day, SUM(cost_usd) as total_cost, COUNT(*) as stage_count FROM stages GROUP BY DATE(created_at) ORDER BY day DESC LIMIT 30",
+    ).all(),
+    db.prepare(
+      "SELECT task_type, COUNT(*) as count, SUM(total_cost_usd) as total_cost, AVG(total_cost_usd) as avg_cost FROM tasks GROUP BY task_type ORDER BY total_cost DESC",
+    ).all(),
+    db.prepare(
+      "SELECT id, task_type, complexity, status, total_cost_usd, total_latency_ms, final_model, first_attempt_success, created_at, completed_at FROM tasks ORDER BY created_at DESC LIMIT 25",
+    ).all(),
+    db.prepare(
+      `SELECT model,
+              COUNT(*) as total_stages,
+              SUM(cost_usd) as total_cost,
+              AVG(cost_usd) as avg_cost,
+              AVG(latency_ms) as avg_latency_ms,
+              MIN(latency_ms) as min_latency_ms,
+              MAX(latency_ms) as max_latency_ms
+       FROM stages GROUP BY model ORDER BY total_stages DESC`,
+    ).all(),
   ]);
 
   return {
     task_counts: taskCounts.results ?? [],
     cost_by_model: costByModel.results ?? [],
+    cost_by_day: costByDay.results ?? [],
+    cost_by_task_type: costByType.results ?? [],
     model_performance: modelPerf.results ?? [],
+    leaderboard: leaderboard.results ?? [],
+    recent_tasks: recentTasks.results ?? [],
     circuit_breaker: cb,
   };
 }
