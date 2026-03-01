@@ -64,6 +64,12 @@ launchctl list | grep com.osman              # services
 
 ## Session Protocol
 
-1. On start: read COMPLETION.md (canonical record of what's done)
-2. On finish: update COMPLETION.md with what you completed (commit, item, date)
-3. If it's not in COMPLETION.md, assume it's not done
+1. **Step 0 — Canary**: Call `task(action: "list")` via vault-mcp as health check.
+   - If reachable: proceed normally.
+   - If unreachable: enter **degraded mode** — log warning, use local fallback files:
+     - Tasks: `~/.claude/tasks-fallback.md`
+     - Checkpoints: `~/.claude/checkpoints-fallback.md`
+   - On recovery: reconcile local fallback with D1 via `/reconcile` or manual review.
+2. On start: read COMPLETION.md (canonical record of what's done)
+3. On finish: update COMPLETION.md with what you completed (commit, item, date)
+4. If it's not in COMPLETION.md, assume it's not done
