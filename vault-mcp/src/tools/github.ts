@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Env } from "../env";
 import { mcpText, mcpError } from "../utils";
+import { createCheckpoint } from "./checkpoint";
 
 // ============================================================
 // GitHub API helpers
@@ -163,14 +164,22 @@ export function registerGithubTool(server: McpServer, env: Env) {
             if (!params.title || !params.head) {
               return mcpError("pr requires: owner, repo, title, head");
             }
-            return mcpText(await createPR(env, {
+            const prResult = await createPR(env, {
               owner: params.owner,
               repo: params.repo,
               title: params.title,
               body: params.body,
               head: params.head,
               base: params.base,
-            }));
+            });
+            // Auto-checkpoint on successful PR creation
+            if (!prResult.error) {
+              await createCheckpoint(env.VAULT_DB, {
+                objective: `PR created: ${params.owner}/${params.repo}#${prResult.number}`,
+                recent_actions: ["github pr created"],
+              }).catch(() => {}); // fire-and-forget, don't fail the PR
+            }
+            return mcpText(prResult);
           }
         }
       } catch (err) {

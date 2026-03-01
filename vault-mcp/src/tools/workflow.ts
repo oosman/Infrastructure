@@ -3,6 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Env } from "../env";
 import { now, mcpText, mcpError } from "../utils";
 import { createTask, writeStage } from "../logic/workflow-db";
+import { createCheckpoint } from "./checkpoint";
 
 // ============================================================
 // D1 operations (local to workflow tool)
@@ -203,7 +204,7 @@ export function registerWorkflowTool(server: McpServer, env: Env) {
             if (!params.task_id) {
               return mcpError("close requires: task_id");
             }
-            return mcpText(await closeTask(env.VAULT_DB, params.task_id, {
+            const closeResult = await closeTask(env.VAULT_DB, params.task_id, {
               final_model: params.final_model,
               first_attempt_success: params.first_attempt_success,
               human_correction_needed: params.human_correction_needed,
@@ -211,7 +212,15 @@ export function registerWorkflowTool(server: McpServer, env: Env) {
               consensus_type: params.consensus_type,
               consensus_result: params.consensus_result,
               models_used: params.models_used,
-            }));
+            });
+            // Auto-checkpoint on successful close
+            if (!closeResult.error) {
+              await createCheckpoint(env.VAULT_DB, {
+                objective: `Workflow closed: ${params.task_id}`,
+                recent_actions: ["workflow close completed"],
+              }).catch(() => {}); // fire-and-forget, don't fail the close
+            }
+            return mcpText(closeResult);
           }
         }
       } catch (err) {

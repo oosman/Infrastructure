@@ -15,7 +15,7 @@ async function loadCheckpoint(db: D1Database) {
   return checkpoint;
 }
 
-async function createCheckpoint(db: D1Database, params: {
+export async function createCheckpoint(db: D1Database, params: {
   objective?: string;
   blockers?: string[];
   recent_actions?: string[];
