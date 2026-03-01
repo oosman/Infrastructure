@@ -16,6 +16,8 @@ import { registerSearchTool } from "./tools/search";
 import { registerPricingTool } from "./tools/pricing";
 import { registerHealthTool, checkHealth } from "./tools/health";
 import { registerBackupTool } from "./tools/backup";
+import { registerSessionStartTool } from "./tools/session-start";
+import { registerSessionEndTool } from "./tools/session-end";
 
 // Route handlers
 import { handleWorkflowRoutes } from "./routes/workflow-routes";
@@ -55,6 +57,8 @@ function createServer(env: Env, waitUntil?: (p: Promise<unknown>) => void): McpS
   registerPricingTool(server, env);
   registerHealthTool(server, env);
   registerBackupTool(server, env);
+  registerSessionStartTool(server, env);
+  registerSessionEndTool(server, env);
   return server;
 }
 

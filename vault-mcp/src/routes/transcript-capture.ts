@@ -189,3 +189,30 @@ export async function captureTranscript(
     resolved_uuid: resolvedUuid,
   };
 }
+
+/**
+ * List recent Claude.ai conversations via the VPS transcript service.
+ */
+export async function listConversations(
+  env: Env,
+  limit = 20,
+): Promise<{ ok: boolean; conversations?: Array<{ uuid: string; name: string; created_at: string; updated_at: string }>; error?: string }> {
+  try {
+    const resp = await fetch(`${env.TRANSCRIPT_URL}/conversations`, {
+      method: "GET",
+      headers: {
+        "X-Auth-Token": env.TRANSCRIPT_SECRET,
+      },
+    });
+
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => "");
+      return { ok: false, error: `VPS ${resp.status}: ${text.substring(0, 200)}` };
+    }
+
+    const data = await resp.json() as { conversations: Array<{ uuid: string; name: string; created_at: string; updated_at: string }> };
+    return { ok: true, conversations: (data.conversations || []).slice(0, limit) };
+  } catch (err) {
+    return { ok: false, error: `fetch failed: ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
