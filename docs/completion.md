@@ -163,21 +163,28 @@
 
 | Item | Status | Detail | Date |
 |------|--------|--------|------|
-| 7.1 Gateway created | ✅ | infra-gateway via CF API | 2026-02-28 |
-| 7.2 Workers AI binding | ✅ | [ai] in wrangler.toml, no external API key needed | 2026-02-28 |
-| 7.3 Classification pass | ✅ | classify.ts — Llama 3.1 8B via Workers AI → gateway, backfills task_type/complexity/language/stack/domain on D1 | 2026-02-28 |
-| 7.4 Wired into execute | ✅ | waitUntil(classifyTask(...)) in execute.ts | 2026-02-28 |
-| 7.5 Deployed | ✅ | Version e3530a1b, AI binding active | 2026-02-28 |
+| 7.1 Gateway created | ✅ | infra-gateway via CF API (logging, rate limiting 100/min) | 2026-03-01 |
+| 7.2 Classification pass | ✅ | classify.ts — Llama 3.1 8B via Workers AI → gateway, backfills task_type/complexity/language/stack/domain on D1 | 2026-03-01 |
+| 7.3 Wired into execute | ✅ | waitUntil(classifyTask(...)) in execute.ts success path | 2026-03-01 |
+| 7.4 Workers AI binding | ✅ | [ai] in wrangler.toml, env.AI: Ai in env.ts | 2026-03-01 |
+| 7.5 Deployed + validated | ✅ | Version 924c8bd5, classification confirmed in D1 + gateway logs | 2026-03-01 |
+| 7.6 Executor repo cloned on VM | ✅ | /home/ubuntu/repos/oosman/infrastructure | 2026-03-01 |
+
+### Key Commits
+- aa65507: Initial AI Gateway + classification (ANTHROPIC_API_KEY path)
+- 4a007e9: Switch to Workers AI Llama 3.1 8B (free, no API key)
 
 ### Key Decisions
-- Workers AI (Llama 3.1 8B) over Anthropic Haiku — no API key needed, free tier, sufficient for classification
+- Workers AI (Llama 3.1 8B) over Anthropic Haiku — free tier, no API key, sufficient for 5-field JSON classification
+- Anthropic OAuth tokens banned for third-party API use as of Feb 20 2026 — Max subscription can't be used from Workers
 - Classification is best-effort (waitUntil, failures logged and swallowed)
 - Gateway: skipCache=true (each task is unique), metadata includes task_id
 
 ### Files Created/Modified
-- vault-mcp/src/logic/classify.ts (new) — classification implementation
-- vault-mcp/src/env.ts — AI binding + gateway constants
-- vault-mcp/src/tools/execute.ts — waitUntil wiring
+- vault-mcp/src/logic/classify.ts (new) — classification via Workers AI
+- vault-mcp/src/env.ts — AI binding, gateway constants, __waitUntil injection
+- vault-mcp/src/tools/execute.ts — waitUntil wiring + classifyTask import
+- vault-mcp/src/index.ts — inject __waitUntil from ExecutionContext into env
 - vault-mcp/wrangler.toml — [ai] binding
 ## Phase 8 — Context Continuity ✅
 
@@ -220,7 +227,7 @@
 | KB site | oosman.github.io/Infrastructure | ✅ Zensical | Public |
 | D1 | vault-db (5a0c53ff) | ✅ 8 tables, data flowing | Via vault-mcp |
 | KV | TASKS_KV (0e01cc29) | ✅ | Via vault-mcp |
-| AI Gateway | infra-gateway | ✅ | Workers AI binding (no key) |
+| AI Gateway | infra-gateway | ✅ | Workers AI binding (Llama 3.1 8B, free) |
 
 ## Pending Actions (require Osama's hands)
 
@@ -238,6 +245,7 @@
 | vault-mcp auth | VAULT_AUTH_TOKEN | Bearer for /mcp and REST |
 | mac-mcp secret | MAC_MCP_AUTH_TOKEN | URL path segment |
 | Executor auth | EXECUTOR_SECRET | x-auth-token header |
+| Anthropic API | ANTHROPIC_API_KEY | Worker secret (fallback, not actively used) |
 | CF Account ID | (not a secret) | 3d18a8bf1d47b952ec66dc00b76f38cd |
 
 ## Session Prompts
@@ -246,4 +254,5 @@
 |-------|------|--------|
 | Phase 5 | .prompts/phase5-session.md | ✅ Complete |
 | Phase 6 | .prompts/phase6-session.md | ✅ Complete |
+| Phase 7 | .prompts/phase7-session.md | ✅ Complete |
 | Phase 8 | .prompts/phase8-session.md | ✅ Complete |
