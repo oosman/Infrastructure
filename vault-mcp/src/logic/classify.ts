@@ -1,9 +1,9 @@
 import type { Env } from "../env";
-import { AI_GATEWAY_ID } from "../env";
+import { AI_GATEWAY_URL } from "../env";
 
 // ============================================================
-// Post-execution classification via Workers AI → AI Gateway
-// Best-effort: failures are logged and swallowed.
+// Post-execution classification via AI Gateway → Anthropic Haiku
+// Uses Max account API credits. Best-effort: failures logged and swallowed.
 // ============================================================
 
 const CLASSIFICATION_SYSTEM_PROMPT = `You are a task classifier. Given a task instruction and its output, classify the task.
@@ -41,46 +41,52 @@ export async function classifyTask(
       `## Output (first 500 chars)\n${outputStr.slice(0, 500)}`,
     ].join("\n\n");
 
-    // Use Workers AI routed through AI Gateway
-    const response = await env.AI.run(
-      "@cf/meta/llama-3.1-8b-instruct" as BaseAiTextGeneration,
+    const response = await fetch(
+      `${AI_GATEWAY_URL}/anthropic/v1/messages`,
       {
-        messages: [
-          { role: "system", content: CLASSIFICATION_SYSTEM_PROMPT },
-          { role: "user", content: userContent },
-        ],
-        max_tokens: 256,
-      },
-      {
-        gateway: {
-          id: AI_GATEWAY_ID,
-          skipCache: true,
-          metadata: { task_id: taskId },
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": env.ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+          "cf-aig-skip-cache": "true",
+          "cf-aig-metadata-task_id": taskId,
         },
+        body: JSON.stringify({
+          model: "claude-haiku-4-5-20251001",
+          max_tokens: 256,
+          system: CLASSIFICATION_SYSTEM_PROMPT,
+          messages: [{ role: "user", content: userContent }],
+        }),
       },
     );
 
-    const text = typeof response === "string"
-      ? response
-      : (response as { response?: string }).response;
-
-    if (!text) {
-      console.error(`[classify] No text in response for task ${taskId}`);
+    if (!response.ok) {
+      console.error(
+        `[classify] Gateway returned ${response.status} for task ${taskId}: ${await response.text()}`,
+      );
       return;
     }
 
-    // Parse JSON — strip markdown fencing if model includes it
+    const data = (await response.json()) as {
+      content?: Array<{ type: string; text?: string }>;
+    };
+
+    const text = data.content?.find((b) => b.type === "text")?.text;
+    if (!text) {
+      console.error(`[classify] No text block in response for task ${taskId}`);
+      return;
+    }
+
     const cleaned = text.replace(/```json\s*|```\s*/g, "").trim();
     const result: ClassificationResult = JSON.parse(cleaned);
 
-    // Validate fields before writing
     const validTaskTypes = ["fix", "feature", "test", "refactor", "review", "docs"];
     const validComplexities = ["trivial", "simple", "moderate", "complex"];
 
     const taskType = validTaskTypes.includes(result.task_type ?? "") ? result.task_type : null;
     const complexity = validComplexities.includes(result.complexity ?? "") ? result.complexity : null;
 
-    // Update D1 task record with classification
     await env.VAULT_DB.prepare(
       `UPDATE tasks
        SET task_type = COALESCE(?, task_type),
@@ -105,7 +111,6 @@ export async function classifyTask(
       `[classify] Task ${taskId} classified: type=${taskType} complexity=${complexity} lang=${result.language} stack=${result.stack} domain=${result.domain}`,
     );
   } catch (err) {
-    // Best-effort — log and move on
     console.error(
       `[classify] Failed for task ${taskId}: ${err instanceof Error ? err.message : String(err)}`,
     );
