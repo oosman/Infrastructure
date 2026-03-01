@@ -22,6 +22,7 @@ import { handleWorkflowRoutes } from "./routes/workflow-routes";
 import { handleTaskRoutes } from "./routes/task-routes";
 import { handleGitHubWebhook } from "./routes/github-webhook";
 import { handleTranscriptSearch, handleTranscriptIngest } from "./routes/transcript";
+import { captureTranscript } from "./routes/transcript-capture";
 import { handleExecuteProxy } from "./routes/execute-proxy";
 
 function createServer(env: Env, waitUntil?: (p: Promise<unknown>) => void): McpServer {
@@ -171,6 +172,16 @@ export default {
     }
     if (pathname === "/transcripts" && request.method === "POST") {
       return handleTranscriptIngest(request, env);
+    }
+    if (pathname === "/transcripts/capture" && request.method === "POST") {
+      const body = await request.json() as { conversation_uuid: string };
+      if (!body.conversation_uuid) return errorResponse("Required: conversation_uuid");
+      try {
+        const result = await captureTranscript(env, body.conversation_uuid);
+        return json(result);
+      } catch (err) {
+        return errorResponse(`Capture failed: ${err instanceof Error ? err.message : String(err)}`, 500);
+      }
     }
     if (pathname === "/execute" && request.method === "POST") {
       return handleExecuteProxy(request, env);

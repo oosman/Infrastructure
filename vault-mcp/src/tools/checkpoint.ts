@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Env } from "../env";
 import { ulid, now, mcpText, mcpError } from "../utils";
+import { captureTranscript } from "../routes/transcript-capture";
 
 // ============================================================
 // Checkpoint & Decisions — D1
@@ -121,15 +122,16 @@ function buildRecoveryDoc(data: {
 export function registerCheckpointTool(server: McpServer, env: Env) {
   server.tool(
     "checkpoint",
-    "Session recovery checkpoints. Actions: load (latest checkpoint), save (create checkpoint), decide (record architectural decision).",
+    "Session recovery checkpoints. Actions: load (latest checkpoint), save (create checkpoint), decide (record architectural decision), ingest (capture transcript from conversation UUID).",
     {
-      action: z.enum(["load", "save", "decide"]).describe("Checkpoint action"),
+      action: z.enum(["load", "save", "decide", "ingest"]).describe("Checkpoint action"),
       objective: z.string().optional().describe("Current objective (save)"),
       blockers: z.array(z.string()).optional().describe("Current blockers (save)"),
       recent_actions: z.array(z.string()).optional().describe("Recent completed actions (save)"),
       decision: z.string().optional().describe("Decision text (decide)"),
       rationale: z.string().optional().describe("Decision rationale (decide)"),
       task_id: z.string().optional().describe("Related task ID (decide)"),
+      conversation_uuid: z.string().optional().describe("Claude.ai conversation UUID (ingest)"),
     },
     async (params) => {
       try {
@@ -142,6 +144,13 @@ export function registerCheckpointTool(server: McpServer, env: Env) {
               blockers: params.blockers,
               recent_actions: params.recent_actions,
             }));
+case "ingest": {
+            if (!params.conversation_uuid) {
+              return mcpError("ingest requires: conversation_uuid");
+            }
+            const captureResult = await captureTranscript(env, params.conversation_uuid);
+            return mcpText(captureResult);
+          }
           case "decide": {
             if (!params.decision || !params.rationale) {
               return mcpError("decide requires: decision, rationale");

@@ -6,6 +6,8 @@ export interface Env {
   GITHUB_WEBHOOK_SECRET: string;
   EXECUTOR_SECRET: string;
   EXECUTOR_URL?: string;
+  TRANSCRIPT_URL: string;
+  TRANSCRIPT_SECRET: string;
   AI: Ai;
   // Injected at request time from ExecutionContext
   __waitUntil?: (p: Promise<unknown>) => void;
