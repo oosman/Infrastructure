@@ -28,7 +28,7 @@ function estimateCost(metrics: any, executor?: string): number {
 // ============================================================
 function inferDefaultModel(executor?: string): string {
   const defaults: Record<string, string> = {
-    claude: "claude-sonnet-4-6",
+    claude: "claude-sonnet-4-5-20250929",
     codex: "gpt-5.3-codex",
     gemini: "gemini-3.1-pro-preview",
     consensus: "consensus",
@@ -152,6 +152,7 @@ export function registerExecuteTool(server: McpServer, env: Env) {
           const attemptStart = Date.now();
           const result = await proxyToExecutor(env, {
             ...params,
+            repo: params.repo ?? "oosman/infrastructure",
             executor: currentExecutor,
             model: currentModel,
             task_id: taskId,
