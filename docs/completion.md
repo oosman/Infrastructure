@@ -169,16 +169,20 @@
 | 7.4 Workers AI binding | ✅ | [ai] in wrangler.toml, env.AI: Ai in env.ts | 2026-03-01 |
 | 7.5 Deployed + validated | ✅ | Version 924c8bd5, classification confirmed in D1 + gateway logs | 2026-03-01 |
 | 7.6 Executor repo cloned on VM | ✅ | /home/ubuntu/repos/oosman/infrastructure | 2026-03-01 |
+| 7.7 Gateway caching enabled | ✅ | skipCache=false + cacheTtl=3600 (was skipCache=true) | 2026-03-01 |
+| 7.8 AI Gateway API token | ✅ | CF_AIG_TOKEN in Keychain + wrangler secret, Read+Write+Run perms | 2026-03-01 |
+| 7.9 Log retention clarified | ✅ | Count-based (10M max), not time-based. No config needed. | 2026-03-01 |
 
 ### Key Commits
 - aa65507: Initial AI Gateway + classification (ANTHROPIC_API_KEY path)
 - 4a007e9: Switch to Workers AI Llama 3.1 8B (free, no API key)
+- ef0cfcc: Enable gateway caching (skipCache=false, cacheTtl=3600)
 
 ### Key Decisions
 - Workers AI (Llama 3.1 8B) over Anthropic Haiku — free tier, no API key, sufficient for 5-field JSON classification
 - Anthropic OAuth tokens banned for third-party API use as of Feb 20 2026 — Max subscription can't be used from Workers
 - Classification is best-effort (waitUntil, failures logged and swallowed)
-- Gateway: skipCache=true (each task is unique), metadata includes task_id
+- Gateway: skipCache=false + cacheTtl=3600 (cache identical classifications), metadata includes task_id
 
 ### Files Created/Modified
 - vault-mcp/src/logic/classify.ts (new) — classification via Workers AI
@@ -186,6 +190,7 @@
 - vault-mcp/src/tools/execute.ts — waitUntil wiring + classifyTask import
 - vault-mcp/src/index.ts — inject __waitUntil from ExecutionContext into env
 - vault-mcp/wrangler.toml — [ai] binding
+- vault-mcp/src/logic/classify.ts — caching enabled (skipCache=false, cacheTtl=3600)
 ## Phase 8 — Context Continuity ✅
 
 | Item | Status | Detail | Date |
@@ -246,6 +251,7 @@
 | mac-mcp secret | MAC_MCP_AUTH_TOKEN | URL path segment |
 | Executor auth | EXECUTOR_SECRET | x-auth-token header |
 | Anthropic API | ANTHROPIC_API_KEY | Worker secret (fallback, not actively used) |
+| AI Gateway API | CF_AIG_TOKEN | AI Gateway Read+Write+Run (logs, analytics) |
 | CF Account ID | (not a secret) | 3d18a8bf1d47b952ec66dc00b76f38cd |
 
 ## Session Prompts
