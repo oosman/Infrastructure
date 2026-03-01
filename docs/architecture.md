@@ -43,7 +43,7 @@ Claude.ai (Opus 4.6 orchestrator, 200K context)
     ▼                                          ▼
 ┌──────────────────────┐    ┌──────────────────────────────────┐
 │ CF AI Gateway         │    │ Lightsail VM ($12/mo)            │
-│ (Phase 7)             │    │ ├── Claude Code (Max OAuth)      │
+│ (Active)              │    │ ├── Claude Code (Max OAuth)      │
 │ • Cost analytics      │    │ ├── Codex CLI (ChatGPT auth)     │
 │ • Response caching    │    │ ├── Gemini CLI (Ultra acct)      │
 │ • Rate limiting       │    │ └── Consensus diffing            │
@@ -115,4 +115,4 @@ See ADR-0007.
 | vault-mcp | vault.deltaops.dev | CF Worker | Bearer | ✅ Healthy |
 | executor | executor.deltaops.dev | Lightsail VM | x-auth-token | ✅ Healthy |
 | Portal | mcp-test.deltaops.dev | CF Access | OAuth (Managed) | ✅ 24 tools |
-| AI Gateway | CF AI Gateway | Cloudflare | Token | Phase 7 |
+| AI Gateway | infra-gateway | CF Workers AI | AI binding (no key) | ✅ Active |

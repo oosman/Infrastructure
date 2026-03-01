@@ -1,8 +1,8 @@
 import type { Env } from "../env";
-import { AI_GATEWAY_URL } from "../env";
+import { AI_GATEWAY_ID } from "../env";
 
 // ============================================================
-// Post-execution classification via AI Gateway → Haiku
+// Post-execution classification via Workers AI → AI Gateway
 // Best-effort: failures are logged and swallowed.
 // ============================================================
 
@@ -41,46 +41,35 @@ export async function classifyTask(
       `## Output (first 500 chars)\n${outputStr.slice(0, 500)}`,
     ].join("\n\n");
 
-    const response = await fetch(
-      `${AI_GATEWAY_URL}/anthropic/v1/messages`,
+    // Use Workers AI routed through AI Gateway
+    const response = await env.AI.run(
+      "@cf/meta/llama-3.1-8b-instruct" as BaseAiTextGeneration,
       {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": env.ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
-          // Skip cache — classification content varies per task
-          "cf-aig-skip-cache": "true",
-          // Tag with task ID for gateway analytics
-          "cf-aig-metadata-task_id": taskId,
+        messages: [
+          { role: "system", content: CLASSIFICATION_SYSTEM_PROMPT },
+          { role: "user", content: userContent },
+        ],
+        max_tokens: 256,
+      },
+      {
+        gateway: {
+          id: AI_GATEWAY_ID,
+          skipCache: true,
+          metadata: { task_id: taskId },
         },
-        body: JSON.stringify({
-          model: "claude-haiku-4-5-20251001",
-          max_tokens: 256,
-          system: CLASSIFICATION_SYSTEM_PROMPT,
-          messages: [{ role: "user", content: userContent }],
-        }),
       },
     );
 
-    if (!response.ok) {
-      console.error(
-        `[classify] Gateway returned ${response.status} for task ${taskId}: ${await response.text()}`,
-      );
-      return;
-    }
+    const text = typeof response === "string"
+      ? response
+      : (response as { response?: string }).response;
 
-    const data = (await response.json()) as {
-      content?: Array<{ type: string; text?: string }>;
-    };
-
-    const text = data.content?.find((b) => b.type === "text")?.text;
     if (!text) {
-      console.error(`[classify] No text block in response for task ${taskId}`);
+      console.error(`[classify] No text in response for task ${taskId}`);
       return;
     }
 
-    // Parse JSON — strip markdown fencing if model includes it despite instructions
+    // Parse JSON — strip markdown fencing if model includes it
     const cleaned = text.replace(/```json\s*|```\s*/g, "").trim();
     const result: ClassificationResult = JSON.parse(cleaned);
 

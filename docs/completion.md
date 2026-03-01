@@ -159,7 +159,26 @@
 | Production domain (mcp.deltaops.dev) | ❌ Deferred | Keeping mcp-test until portal proves stable |
 | Latency benchmarks | ❌ Deferred | Qualitative: no noticeable delay |
 
-## Phase 7 — AI Gateway ❌ Not Started (deferred until Phase 5 traffic exists)
+## Phase 7 — AI Gateway ✅
+
+| Item | Status | Detail | Date |
+|------|--------|--------|------|
+| 7.1 Gateway created | ✅ | infra-gateway via CF API | 2026-02-28 |
+| 7.2 Workers AI binding | ✅ | [ai] in wrangler.toml, no external API key needed | 2026-02-28 |
+| 7.3 Classification pass | ✅ | classify.ts — Llama 3.1 8B via Workers AI → gateway, backfills task_type/complexity/language/stack/domain on D1 | 2026-02-28 |
+| 7.4 Wired into execute | ✅ | waitUntil(classifyTask(...)) in execute.ts | 2026-02-28 |
+| 7.5 Deployed | ✅ | Version e3530a1b, AI binding active | 2026-02-28 |
+
+### Key Decisions
+- Workers AI (Llama 3.1 8B) over Anthropic Haiku — no API key needed, free tier, sufficient for classification
+- Classification is best-effort (waitUntil, failures logged and swallowed)
+- Gateway: skipCache=true (each task is unique), metadata includes task_id
+
+### Files Created/Modified
+- vault-mcp/src/logic/classify.ts (new) — classification implementation
+- vault-mcp/src/env.ts — AI binding + gateway constants
+- vault-mcp/src/tools/execute.ts — waitUntil wiring
+- vault-mcp/wrangler.toml — [ai] binding
 ## Phase 8 — Context Continuity ✅
 
 | Item | Status | Detail | Date |
@@ -190,6 +209,7 @@
 | KB site | oosman.github.io/Infrastructure | ✅ Zensical | Public |
 | D1 | vault-db (5a0c53ff) | ✅ 8 tables, data flowing | Via vault-mcp |
 | KV | TASKS_KV (0e01cc29) | ✅ | Via vault-mcp |
+| AI Gateway | infra-gateway | ✅ | Workers AI binding (no key) |
 
 ## Pending Actions (require Osama's hands)
 

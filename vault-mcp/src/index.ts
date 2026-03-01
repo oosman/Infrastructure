@@ -23,7 +23,11 @@ import { handleGitHubWebhook } from "./routes/github-webhook";
 import { handleTranscriptSearch, handleTranscriptIngest } from "./routes/transcript";
 import { handleExecuteProxy } from "./routes/execute-proxy";
 
-function createServer(env: Env): McpServer {
+function createServer(env: Env, waitUntil?: (p: Promise<unknown>) => void): McpServer {
+  // Inject waitUntil so tools (execute→classify) can fire async work
+  if (waitUntil) {
+    env = { ...env, __waitUntil: waitUntil };
+  }
   const server = new McpServer({ name: "vault-mcp", version: "2.0.0" });
   registerWorkflowTool(server, env);
   registerWorkflowQueryTool(server, env);
@@ -123,7 +127,7 @@ export default {
         body: request.body,
       });
 
-      const server = createServer(env);
+      const server = createServer(env, (p) => ctx.waitUntil(p));
       const handler = createMcpHandler(server as any);
       return handler(mcpRequest, env, ctx);
     }

@@ -5,6 +5,7 @@ import { mcpText, mcpError, EXECUTOR_DEFAULT_URL } from "../utils";
 import { getCircuitBreakerState } from "../logic/circuit-breaker";
 import { createTask, writeStage } from "../logic/workflow-db";
 import { shouldEscalate, getNextRung, MODEL_LADDER, MAX_ATTEMPTS, MAX_TOTAL_ATTEMPTS } from "../logic/escalation";
+import { classifyTask } from "../logic/classify";
 
 // ============================================================
 // Cost estimation
@@ -238,6 +239,11 @@ export function registerExecuteTool(server: McpServer, env: Env) {
           });
 
           attempts.push({ executor: currentExecutor, model: currentModel, stage_type: "impl", latency_ms: attemptLatency });
+
+          // Fire-and-forget classification via AI Gateway (Haiku)
+          if (env.__waitUntil) {
+            env.__waitUntil(classifyTask(env, taskId, params.instruction, result));
+          }
 
           return mcpText({
             task_id: taskId,

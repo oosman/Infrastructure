@@ -77,8 +77,8 @@ The active work stream is building the infrastructure itself — the system that
 | 4 | Executor Hardening (systemd, memory/CPU limits, dedicated user) | ✅ Complete |
 | 5 | Orchestration Wiring (execute→D1 lifecycle, circuit breakers, mermaid) | ✅ Complete |
 | 6 | Portal Spike (MCP Server Portal — adopted) | ✅ Complete |
-| 7 | AI Gateway (classification routing, cost analytics) | Planned |
-| 8 | Context Continuity (compaction, session handoff) | Planned |
+| 7 | AI Gateway (Workers AI classification via gateway) | ✅ Complete |
+| 8 | Context Continuity (canary, degraded mode, dashboard) | ✅ Complete |
 
 ## Principles
 

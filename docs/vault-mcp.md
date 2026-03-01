@@ -47,6 +47,10 @@ The `execute` tool (Phase 5) wires executor calls to D1:
 - Feeds circuit breaker daily/monthly accumulators
 - Returns mermaid-compressed output + task_id for traceability
 
+## Classification (Phase 7)
+
+After execute tool completes, a waitUntil fires Workers AI (Llama 3.1 8B) through AI Gateway to classify the task. Backfills task_type, complexity, language, stack, domain on the D1 task record. Best-effort — failures are logged and swallowed.
+
 ## Status
 
-Deployed v2.0.0. Stateless Worker with Streamable HTTP transport. 10 MCP tools, D1 (8 tables, data flowing — tasks, stages, circuit_breaker accumulating), KV (tasks). Execute tool wired to full D1 lifecycle (Phase 5 complete).
+Deployed v2.1.0 (Phase 7: AI Gateway classification). Stateless Worker with Streamable HTTP transport. 10 MCP tools, D1 (8 tables, data flowing — tasks, stages, circuit_breaker accumulating), KV (tasks). Execute tool wired to full D1 lifecycle (Phase 5 complete).
