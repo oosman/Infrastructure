@@ -17,14 +17,14 @@ export const MODEL_LADDER: LadderRung[] = [
   { executor: "deepseek", model: "deepseek-v3.2", label: "DeepSeek V3.2", costPerMtokIn: 0.28, costPerMtokOut: 0.42, available: false },
 
   // Gemini CLI installed
-  { executor: "gemini", model: "gemini-3-flash", label: "Gemini 3 Flash", costPerMtokIn: 0.50, costPerMtokOut: 3.00, available: true },
+  { executor: "gemini", model: "gemini-3-flash-preview", label: "Gemini 3 Flash", costPerMtokIn: 0.50, costPerMtokOut: 3.00, available: true },
   { executor: "gemini", model: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro", costPerMtokIn: 2.00, costPerMtokOut: 12.00, available: true },
 
   // Codex CLI installed (subscription, not per-token)
   { executor: "codex", model: "gpt-5.3-codex", label: "GPT-5.3 Codex", costPerMtokIn: 1.75, costPerMtokOut: 14.00, available: true },
 
   // Claude CLI installed (Max OAuth)
-  { executor: "claude", model: "claude-sonnet-4-5-20250929", label: "Sonnet 4.5", costPerMtokIn: 3.00, costPerMtokOut: 15.00, available: true },
+  { executor: "claude", model: "claude-sonnet-4-6", label: "Sonnet 4.6", costPerMtokIn: 3.00, costPerMtokOut: 15.00, available: true },
 
   // Opus reserved for hardest tasks — available but gated
   { executor: "claude", model: "claude-opus-4-6", label: "Opus 4.6", costPerMtokIn: 5.00, costPerMtokOut: 25.00, available: true },
@@ -74,10 +74,10 @@ export function getStartingRung(complexity: string): LadderRung {
     case "simple":
       return available.find(r => r.executor === "gemini" && r.model.includes("pro")) ?? available[0];
     case "moderate":
-      return available.find(r => r.label === "Sonnet 4.5") ?? available[available.length - 1];
+      return available.find(r => r.label === "Sonnet 4.6") ?? available[available.length - 1];
     case "complex":
-      return available.find(r => r.label === "Sonnet 4.5") ?? available[available.length - 1];
+      return available.find(r => r.label === "Sonnet 4.6") ?? available[available.length - 1];
     default:
-      return available.find(r => r.label === "Sonnet 4.5") ?? available[0];
+      return available.find(r => r.label === "Sonnet 4.6") ?? available[0];
   }
 }

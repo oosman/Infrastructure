@@ -28,7 +28,7 @@ function estimateCost(metrics: any, executor?: string): number {
 // ============================================================
 function inferDefaultModel(executor?: string): string {
   const defaults: Record<string, string> = {
-    claude: "claude-sonnet-4-5-20250929",
+    claude: "claude-sonnet-4-6",
     codex: "gpt-5.3-codex",
     gemini: "gemini-3.1-pro-preview",
     consensus: "consensus",

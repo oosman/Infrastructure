@@ -1,6 +1,6 @@
 """mitmproxy addon: capture Claude.ai conversations to JSONL.
 
-Intercepts streaming completions from api.claude.ai, extracts
+Intercepts streaming completions from claude.ai, extracts
 user prompts and assistant responses, writes paired entries to
 a local JSONL file for vault-mcp ingestion.
 """
@@ -13,7 +13,8 @@ from mitmproxy import ctx, http
 
 TRANSCRIPT_DIR = Path(__file__).parent / "transcripts"
 JSONL_FILE = TRANSCRIPT_DIR / "claude.jsonl"
-TARGET_HOST = "api.claude.ai"
+# Claude.ai web app uses claude.ai (not api.claude.ai)
+TARGET_HOSTS = {"claude.ai", "www.claude.ai"}
 
 
 class ClaudeCapture:
@@ -22,52 +23,103 @@ class ClaudeCapture:
         ctx.log.info(f"ClaudeCapture: writing transcripts to {JSONL_FILE}")
 
     def response(self, flow: http.HTTPFlow):
-        if flow.request.pretty_host != TARGET_HOST:
+        host = flow.request.pretty_host
+        if host not in TARGET_HOSTS:
             return
         if flow.request.method != "POST":
             return
-        # Only capture SSE streaming responses (completions)
-        ct = flow.response.headers.get("content-type", "")
-        if "text/event-stream" not in ct:
-            return
-        try:
-            self._capture(flow)
-        except Exception as e:
-            ctx.log.error(f"ClaudeCapture: {e}")
 
-    def _capture(self, flow: http.HTTPFlow):
-        # Extract user prompt from request body
+        # Log all POSTs for debugging
+        path = flow.request.path
+        ct = flow.response.headers.get("content-type", "")
+        ctx.log.info(f"ClaudeCapture: POST {host}{path} -> {ct[:60]}")
+
+        # Capture SSE streaming responses (completions)
+        if "text/event-stream" in ct:
+            try:
+                self._capture_sse(flow)
+            except Exception as e:
+                ctx.log.error(f"ClaudeCapture SSE: {e}")
+            return
+
+        # Also capture JSON responses (some endpoints return JSON)
+        if "application/json" in ct:
+            try:
+                self._capture_json(flow)
+            except Exception as e:
+                ctx.log.error(f"ClaudeCapture JSON: {e}")
+
+    def _capture_sse(self, flow: http.HTTPFlow):
         req_text = flow.request.get_text()
         if not req_text:
             return
         req_body = json.loads(req_text)
         user_prompt = self._extract_prompt(req_body)
-        if not user_prompt:
-            return
 
-        # Extract assistant response from SSE stream
         resp_text = flow.response.get_text()
         if not resp_text:
             return
         assistant_text = self._parse_sse(resp_text)
-        if not assistant_text:
-            return
 
+        if user_prompt or assistant_text:
+            self._write(user_prompt, assistant_text, flow.request.path)
+
+    def _capture_json(self, flow: http.HTTPFlow):
+        """Capture non-streaming JSON responses that contain conversation data."""
+        # Only capture completion-like paths
+        path = flow.request.path
+        if "/completion" not in path and "/chat" not in path:
+            return
+        req_text = flow.request.get_text()
+        if not req_text:
+            return
+        req_body = json.loads(req_text)
+        user_prompt = self._extract_prompt(req_body)
+        
+        resp_text = flow.response.get_text()
+        if not resp_text:
+            return
+        resp_body = json.loads(resp_text)
+        
+        # Extract assistant text from JSON response
+        assistant_text = ""
+        content = resp_body.get("content", [])
+        if isinstance(content, list):
+            assistant_text = " ".join(
+                b.get("text", "") for b in content
+                if isinstance(b, dict) and b.get("type") == "text"
+            )
+        elif isinstance(resp_body.get("completion"), str):
+            assistant_text = resp_body["completion"]
+        
+        if user_prompt or assistant_text:
+            self._write(user_prompt, assistant_text, path)
+
+    def _write(self, user_prompt: str, assistant_text: str, path: str):
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
         session_date = datetime.date.today().isoformat()
 
         with open(JSONL_FILE, "a") as f:
-            for role, content in [("user", user_prompt), ("assistant", assistant_text)]:
+            if user_prompt:
                 f.write(json.dumps({
                     "session_date": session_date,
-                    "role": role,
-                    "content": content,
+                    "role": "user",
+                    "content": user_prompt,
+                    "path": path,
+                    "created_at": now,
+                }) + "\n")
+            if assistant_text:
+                f.write(json.dumps({
+                    "session_date": session_date,
+                    "role": "assistant",
+                    "content": assistant_text,
+                    "path": path,
                     "created_at": now,
                 }) + "\n")
 
         ctx.log.info(
             f"ClaudeCapture: {len(user_prompt)}c prompt, "
-            f"{len(assistant_text)}c response"
+            f"{len(assistant_text)}c response ({path})"
         )
 
     @staticmethod
@@ -106,13 +158,14 @@ class ClaudeCapture:
                 event = json.loads(data)
             except json.JSONDecodeError:
                 continue
+            etype = event.get("type", "")
             # Messages API: content_block_delta
-            if event.get("type") == "content_block_delta":
+            if etype == "content_block_delta":
                 delta = event.get("delta", {})
                 if delta.get("type") == "text_delta":
                     chunks.append(delta.get("text", ""))
             # Older completion format
-            elif event.get("type") == "completion":
+            elif etype == "completion":
                 chunks.append(event.get("completion", ""))
         return "".join(chunks)
 
