@@ -1,5 +1,5 @@
 <!-- RESUME CONTEXT
-What: vault-mcp reference — CF Worker for workflow state, tasks, GitHub
+What: vault-mcp reference — CF Worker for workflow state, tasks, GitHub, session continuity
 Why: Documents the Cloudflare Worker MCP server
 Next: cloudflare.md for infrastructure details
 Depends-on: architecture.md
@@ -14,7 +14,7 @@ tags: [mcp, cloudflare, vault]
 
 # vault-mcp
 
-Cloudflare Worker providing workflow state management, task tracking, and GitHub integration via MCP protocol.
+Cloudflare Worker providing workflow state management, task tracking, GitHub integration, and session continuity via MCP protocol.
 
 ## Endpoint
 
@@ -26,6 +26,7 @@ https://vault.deltaops.dev/mcp
 - Human tasks: CRUD via Workers KV, binary status (open/done)
 - GitHub: read/write files, create PRs
 - Checkpoints: state persistence for session continuity
+- Session canary: `task(action: "list")` as first call determines normal vs degraded mode
 
 ## Auth
 
@@ -51,6 +52,17 @@ The `execute` tool (Phase 5) wires executor calls to D1:
 
 After execute tool completes, a waitUntil fires Workers AI (Llama 3.1 8B) through AI Gateway to classify the task. Backfills task_type, complexity, language, stack, domain on the D1 task record. Best-effort — failures are logged and swallowed.
 
+## Checkpoint Tool (Phase 8)
+
+The checkpoint tool serves dual purposes:
+
+1. **Session canary** — `task(action: "list")` as Step 0 of every session. If vault-mcp is unreachable, the session enters degraded mode with local fallback files.
+2. **State persistence** — `checkpoint(action: "save")` creates a recovery document in D1 with open tasks (Mermaid diagram), recent decisions, blockers, and recent actions. `checkpoint(action: "load")` retrieves the latest. `checkpoint(action: "decide")` records architectural decisions.
+
+The `/compact` and `/handoff` slash commands automatically call checkpoint save before compaction or session handoff.
+
+When vault-mcp is unreachable, sessions fall back to local markdown files (`~/.claude/tasks-fallback.md`, `~/.claude/checkpoints-fallback.md`). See [memory-layer.md](memory-layer.md) and [ADR-0031](decisions/0031-session-canary-degraded-mode.md).
+
 ## Status
 
-Deployed v2.1.0 (Phase 7: AI Gateway classification). Stateless Worker with Streamable HTTP transport. 10 MCP tools, D1 (8 tables, data flowing — tasks, stages, circuit_breaker accumulating), KV (tasks). Execute tool wired to full D1 lifecycle (Phase 5 complete).
+Deployed v2.1.0 (Phase 7: AI Gateway classification, Phase 8: session canary). Stateless Worker with Streamable HTTP transport. 10 MCP tools, D1 (8 tables, data flowing — tasks, stages, circuit_breaker accumulating), KV (tasks). Execute tool wired to full D1 lifecycle (Phase 5 complete).

@@ -198,6 +198,17 @@
 - infrastructure: CLAUDE.md (session canary step 0)
 - React artifact: dashboard.jsx (cost, tasks, circuit breaker, health)
 
+### ADR Created
+- ADR-0031: Session canary & degraded mode
+
+### Docs Updated
+- memory-layer.md: 4-layer model (canary → prevention → capture → recovery), degraded mode, fallback files table
+- setup.md: session start verification, fallback file paths in working directories
+- vault-mcp.md: checkpoint tool canary role, degraded mode reference
+- risks.md: new vault-mcp outage risk with degraded mode mitigation, improved 200K context risk
+- mkdocs.yml: ADR-0031 nav entry
+- CLAUDE.md: ADR range 0001-0031
+
 ## Infrastructure State (verified 2026-02-28)
 
 | Component | URL | Status | Auth |

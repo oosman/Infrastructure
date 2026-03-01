@@ -30,7 +30,7 @@ All Claude config lives in ~/Developer/dotfiles/claude/ and is symlinked:
 ls -la ~/.claude/  # Should show symlinks → ~/Developer/dotfiles/claude/
 ```
 
-Key symlinked items: CLAUDE.md, commands/, contexts/, hooks/, scripts/, settings.json.
+Key symlinked items: CLAUDE.md, commands/, contexts/, hooks/, scripts/, settings.json, tasks-fallback.md, checkpoints-fallback.md.
 
 ## Secrets
 
@@ -65,6 +65,14 @@ curl -sf http://127.0.0.1:3001/health  # server
 curl -sf http://127.0.0.1:20241/ready  # tunnel
 ```
 
+## Session Start Verification
+
+Every session should begin with:
+
+1. **Canary check** — `task(action: "list")` via vault-mcp. If unreachable, session enters degraded mode (local fallback files). See [memory-layer.md](memory-layer.md).
+2. Read CLAUDE.md (project context)
+3. Read COMPLETION.md (what's done)
+
 ## Working Directories
 
 | Purpose | Path |
@@ -74,6 +82,7 @@ curl -sf http://127.0.0.1:20241/ready  # tunnel
 | Dotfiles | ~/Developer/dotfiles/ |
 | Archives | ~/Developer/archive/ |
 | Logs | ~/logs/ |
+| Fallback (degraded mode) | ~/.claude/tasks-fallback.md, ~/.claude/checkpoints-fallback.md |
 
 ## VM (executor.deltaops.dev)
 

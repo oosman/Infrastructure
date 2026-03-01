@@ -110,4 +110,5 @@ nav:
       - decisions/0028-mermaid-compression-protocol.md
       - decisions/0029-cli-strict-mcp-workaround.md
       - decisions/0030-portal-adopt-consolidation.md
+      - decisions/0031-session-canary-degraded-mode.md
   - Tags: tags.md

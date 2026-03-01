@@ -39,6 +39,20 @@ tags: [risks, operations, reliability]
 
 **Residual:** Accepted. Cloudflare's reliability justifies the concentration for a solo project.
 
+## vault-mcp Outage (Degraded Mode)
+
+**Risk:** vault-mcp (Cloudflare Worker) becomes unreachable due to deployment issues, Cloudflare incident, or auth misconfiguration. Sessions lose access to task tracking, checkpoints, and workflow state.
+
+**Mitigations:**
+
+- Session canary protocol: `task(action: "list")` as Step 0 detects outage immediately ([ADR-0031](decisions/0031-session-canary-degraded-mode.md))
+- Degraded mode: tasks written to `~/.claude/tasks-fallback.md`, checkpoints to `~/.claude/checkpoints-fallback.md`
+- Fallback files are symlinked from dotfiles (git-tracked, survives reinstalls)
+- All local tooling (mac-mcp, CC agents, git) continues working in degraded mode
+- On recovery: reconcile local fallback with D1 manually
+
+**Residual:** Fallback files are append-only markdown — no structured queries, no circuit breaker enforcement. Manual reconciliation required on recovery.
+
 ## 200K Context Limit
 
 **Risk:** Opus orchestrator has a 200K token hard limit. Complex sessions can exhaust context.
@@ -46,6 +60,9 @@ tags: [risks, operations, reliability]
 **Mitigations:**
 
 - ~7,500 token overhead for system prompts, leaving ~192K for work
+- `/compact` command saves vault-mcp checkpoint + local handoff before compaction
+- PreCompact hook backs up transcript automatically
+- SessionStart hook after compaction reminds to read CLAUDE.md + HANDOFF.md
 - Checkpoint system in vault-mcp for session continuity
 - Decompose large tasks into smaller dispatched CC agents
 
