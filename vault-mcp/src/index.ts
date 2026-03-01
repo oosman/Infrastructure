@@ -14,7 +14,7 @@ import { registerGithubTool } from "./tools/github";
 import { registerCheckpointTool } from "./tools/checkpoint";
 import { registerSearchTool } from "./tools/search";
 import { registerPricingTool } from "./tools/pricing";
-import { registerHealthTool } from "./tools/health";
+import { registerHealthTool, checkHealth } from "./tools/health";
 import { registerBackupTool } from "./tools/backup";
 
 // Route handlers
@@ -87,9 +87,13 @@ export default {
       });
     }
 
-    // Health — no auth
+    // Health — no auth, full connectivity check
     if (pathname === "/health" && request.method === "GET") {
-      return json({ status: "ok", version: "2.0.0", timestamp: now() });
+      try {
+        return json(await checkHealth(env));
+      } catch (err) {
+        return json({ status: "error", message: String(err) }, 500);
+      }
     }
 
     // SSE deprecated

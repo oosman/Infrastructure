@@ -3,7 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Env } from "../env";
 import { mcpText, mcpError, now, EXECUTOR_DEFAULT_URL } from "../utils";
 
-async function checkHealth(env: Env) {
+export async function checkHealth(env: Env) {
   const checks: Record<string, unknown> = {
     status: "ok",
     version: "2.0.0",
