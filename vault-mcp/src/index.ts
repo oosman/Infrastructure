@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import type { Env } from "./env";
 import { json, errorResponse, verifyBearerAuth, now } from "./utils";
+import { logToolCall } from "./middleware/log-tool-call";
 
 // Tool registrations
 import { registerWorkflowTool } from "./tools/workflow";
@@ -29,6 +30,20 @@ function createServer(env: Env, waitUntil?: (p: Promise<unknown>) => void): McpS
     env = { ...env, __waitUntil: waitUntil };
   }
   const server = new McpServer({ name: "vault-mcp", version: "2.0.0" });
+
+  // Wrap server.tool to inject fire-and-forget D1 logging on every invocation
+  const originalTool = server.tool.bind(server);
+  (server as any).tool = (...args: any[]) => {
+    const toolName: string = args[0];
+    // Handler is always last arg (server.tool has multiple overloads)
+    const handler = args[args.length - 1];
+    args[args.length - 1] = async (params: any) => {
+      logToolCall(env.VAULT_DB, toolName, params?.action, params).catch(() => {});
+      return handler(params);
+    };
+    return originalTool(...args);
+  };
+
   registerWorkflowTool(server, env);
   registerWorkflowQueryTool(server, env);
   registerTaskTool(server, env);
