@@ -7,11 +7,10 @@
 (function () {
   "use strict";
 
-  const CAPTURE_KEY = "__claude_transcripts";
-  const MAX_STORED = 500; // max transcript pairs in localStorage
+  const MAX_STORED = 500;
+  const STORAGE_KEY = "__claude_transcripts";
   const originalFetch = window.fetch;
 
-  // Only patch once
   if (window.__claudeCapturePatched) return;
   window.__claudeCapturePatched = true;
 
@@ -20,33 +19,25 @@
     const url = typeof input === "string" ? input : input?.url || "";
     const method = (init?.method || "GET").toUpperCase();
 
-    // Only intercept POSTs to conversation/completion endpoints
+    // ONLY intercept POSTs to claude.ai conversation endpoints
     if (method !== "POST" || !isConversationEndpoint(url)) {
       return originalFetch.apply(this, args);
     }
 
-    // Extract user prompt from request body
     let userPrompt = "";
     try {
       const body = init?.body;
       if (typeof body === "string") {
         userPrompt = extractPrompt(JSON.parse(body));
       }
-    } catch (e) {
-      // body might not be JSON
-    }
+    } catch (e) {}
 
     const response = await originalFetch.apply(this, args);
     const contentType = response.headers.get("content-type") || "";
 
     if (contentType.includes("text/event-stream") && response.body) {
-      // SSE stream — tee it so Claude.ai gets uninterrupted streaming
       const [streamForApp, streamForCapture] = response.body.tee();
-
-      // Capture in background, don't await
       captureSSEStream(streamForCapture, userPrompt, url);
-
-      // Return cloned response with the app's stream
       return new Response(streamForApp, {
         status: response.status,
         statusText: response.statusText,
@@ -55,7 +46,6 @@
     }
 
     if (contentType.includes("application/json")) {
-      // JSON response — clone and capture
       const cloned = response.clone();
       captureJSONResponse(cloned, userPrompt, url);
       return response;
@@ -65,14 +55,23 @@
   };
 
   function isConversationEndpoint(url) {
-    // Match Claude.ai conversation/chat/completion endpoints
-    return (
-      url.includes("/api/") ||
-      url.includes("/completion") ||
-      url.includes("/chat_conversations") ||
-      url.includes("/retry_completion") ||
-      url.includes("/organizations/") 
-    );
+    // STRICT: only match claude.ai completion/chat endpoints
+    // Do NOT match statsig, intercom, or other third-party domains
+    try {
+      const parsed = new URL(url, window.location.origin);
+      const host = parsed.hostname;
+      // Must be claude.ai — not statsig, intercom, etc.
+      if (host !== "claude.ai" && host !== "www.claude.ai") return false;
+      const path = parsed.pathname;
+      return (
+        path.includes("/completion") ||
+        path.includes("/chat_conversations") ||
+        path.includes("/retry_completion") ||
+        (path.includes("/organizations/") && path.includes("/chat"))
+      );
+    } catch (e) {
+      return false;
+    }
   }
 
   function extractPrompt(body) {
@@ -84,10 +83,7 @@
         const c = msgs[i].content;
         if (typeof c === "string") return c;
         if (Array.isArray(c)) {
-          return c
-            .filter((p) => p.type === "text")
-            .map((p) => p.text)
-            .join(" ");
+          return c.filter((p) => p.type === "text").map((p) => p.text).join(" ");
         }
       }
     }
@@ -118,9 +114,7 @@
             } else if (event.type === "completion" && event.completion) {
               chunks.push(event.completion);
             }
-          } catch (e) {
-            // not JSON, skip
-          }
+          } catch (e) {}
         }
       }
 
@@ -129,7 +123,7 @@
         storeTranscript(userPrompt, assistantText, url);
       }
     } catch (e) {
-      console.debug("[ClaudeCapture] SSE capture error:", e.message);
+      console.debug("[ClaudeCapture] SSE error:", e.message);
     }
   }
 
@@ -139,19 +133,14 @@
       let assistantText = "";
       const content = body?.content;
       if (Array.isArray(content)) {
-        assistantText = content
-          .filter((b) => b.type === "text")
-          .map((b) => b.text)
-          .join(" ");
+        assistantText = content.filter((b) => b.type === "text").map((b) => b.text).join(" ");
       } else if (typeof body?.completion === "string") {
         assistantText = body.completion;
       }
       if (userPrompt || assistantText) {
         storeTranscript(userPrompt, assistantText, url);
       }
-    } catch (e) {
-      // response might not be JSON
-    }
+    } catch (e) {}
   }
 
   function storeTranscript(userPrompt, assistantText, url) {
@@ -161,39 +150,21 @@
       const entries = [];
 
       if (userPrompt) {
-        entries.push({
-          session_date: sessionDate,
-          role: "user",
-          content: userPrompt,
-          path: url,
-          created_at: now,
-        });
+        entries.push({ session_date: sessionDate, role: "user", content: userPrompt, path: url, created_at: now });
       }
       if (assistantText) {
-        entries.push({
-          session_date: sessionDate,
-          role: "assistant",
-          content: assistantText,
-          path: url,
-          created_at: now,
-        });
+        entries.push({ session_date: sessionDate, role: "assistant", content: assistantText, path: url, created_at: now });
       }
 
-      // Read existing, append, trim
-      const existing = JSON.parse(localStorage.getItem(CAPTURE_KEY) || "[]");
+      // Store in localStorage (readable by both worlds)
+      const existing = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
       existing.push(...entries);
-      // Keep last MAX_STORED entries
-      const trimmed = existing.slice(-MAX_STORED);
-      localStorage.setItem(CAPTURE_KEY, JSON.stringify(trimmed));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(existing.slice(-MAX_STORED)));
 
-      console.debug(
-        `[ClaudeCapture] ${userPrompt.length}c prompt, ${assistantText.length}c response`
-      );
+      // Post to window for bridge.js pickup
+      window.postMessage({ type: "claude-transcript", entries }, "*");
 
-      // Also dispatch custom event for background script pickup
-      window.dispatchEvent(
-        new CustomEvent("claude-transcript", { detail: entries })
-      );
+      console.log(`[ClaudeCapture] ${userPrompt.length}c prompt, ${assistantText.length}c response`);
     } catch (e) {
       console.debug("[ClaudeCapture] store error:", e.message);
     }

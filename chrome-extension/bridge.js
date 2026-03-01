@@ -1,12 +1,15 @@
 /**
  * bridge.js — ISOLATED world content script on claude.ai
- * Forwards transcript events from inject.js to background service worker.
+ * Listens for postMessage from inject.js (MAIN world) and forwards
+ * transcript data to the background service worker via chrome.runtime.
  */
-window.addEventListener("claude-transcript", (event) => {
-  if (event.detail && Array.isArray(event.detail)) {
-    chrome.runtime.sendMessage({
-      type: "transcript",
-      entries: event.detail,
-    });
-  }
+window.addEventListener("message", (event) => {
+  if (event.source !== window) return;
+  if (event.data?.type !== "claude-transcript") return;
+  if (!Array.isArray(event.data?.entries)) return;
+
+  chrome.runtime.sendMessage({
+    type: "transcript",
+    entries: event.data.entries,
+  });
 });
