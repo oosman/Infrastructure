@@ -1,65 +1,100 @@
 /**
- * inject.js — MAIN world on claude.ai
- * v2: Full session capture with conversation tracking and branch detection.
+ * inject.js — MAIN world content script on claude.ai
  *
- * Captures: conversation_id, turn_number, full message history per request,
- * assistant response, and detects branches (edits/retries).
+ * Monkey-patches fetch() to passively capture full conversation transcripts.
+ * Uses ReadableStream.tee() so SSE streaming is NEVER interrupted.
+ *
+ * JSONL entry per turn:
+ * {
+ *   session_date, conversation_id, turn_number, is_branch, history_length,
+ *   user_content, assistant_content, [full_history], created_at
+ * }
+ * full_history included on turn 1 and on any branch; omitted otherwise.
  */
-
 (function () {
   "use strict";
-
-  const STORAGE_KEY = "__claude_transcripts";
-  const DEBUG_KEY = "__claude_capture_debug";
-  const MAX_STORED = 2000;
-  const originalFetch = window.fetch;
 
   if (window.__claudeCapturePatched) return;
   window.__claudeCapturePatched = true;
 
-  // Track seen conversations: { conv_id: { turn_count, last_user_uuid, history_hashes[] } }
-  const sessions = {};
+  console.log("[ClaudeCapture] inject.js v2 loaded");
+  _debugSet({ loaded: true, ts: new Date().toISOString() });
+
+  const originalFetch = window.fetch;
+
+  // Per-conversation tracking: conv_id → { turn_number, history_length, last_parent_uuid }
+  const convState = Object.create(null);
 
   window.fetch = async function (...args) {
     const [input, init] = args;
-    const url = typeof input === "string" ? input : input?.url || "";
+    const url = typeof input === "string" ? input : input?.url ?? "";
     const method = (init?.method || "GET").toUpperCase();
 
-    if (method !== "POST" || !isConversationEndpoint(url)) {
+    if (method !== "POST" || !isCompletionEndpoint(url)) {
       return originalFetch.apply(this, args);
     }
 
-    let reqBody = null;
+    console.log("[ClaudeCapture] Intercepting POST:", url);
+
+    // ── Parse request body ────────────────────────────────────────────────────
+    let requestData = {};
     try {
       const body = init?.body;
       if (typeof body === "string") {
-        reqBody = JSON.parse(body);
+        requestData = JSON.parse(body);
+      } else if (body instanceof ArrayBuffer || ArrayBuffer.isView(body)) {
+        requestData = JSON.parse(new TextDecoder().decode(body));
       }
-    } catch (e) {}
-
-    // Debug: dump raw request structure (first 3 calls only)
-    if (reqBody) {
-      debugLog("REQ_BODY_KEYS", {
-        url: url.slice(-80),
-        keys: Object.keys(reqBody),
-        message_count: Array.isArray(reqBody.messages) ? reqBody.messages.length : 0,
-        has_parent: !!reqBody.parent_message_uuid,
-        has_conversation_id: !!reqBody.conversation_uuid,
-        sample_msg_keys: Array.isArray(reqBody.messages) && reqBody.messages[0]
-          ? Object.keys(reqBody.messages[0]) : [],
-      });
+    } catch (e) {
+      console.debug("[ClaudeCapture] Could not parse request body:", e.message);
     }
 
-    const convId = extractConversationId(url, reqBody);
-    const parentUuid = reqBody?.parent_message_uuid || null;
-    const allMessages = reqBody?.messages || [];
+    // ── Extract conversation metadata ─────────────────────────────────────────
+    const conversationId = extractConversationId(url);
+    const messages = extractMessages(requestData);
+    const userContent = extractLastUserContent(messages);
+    const historyLength = messages.length;
+    const parentUuid = requestData?.parent_message_uuid ?? null;
 
-    const response = await originalFetch.apply(this, args);
-    const contentType = response.headers.get("content-type") || "";
+    // ── Branch / edit detection ───────────────────────────────────────────────
+    const prev = convState[conversationId] ?? { turn_number: 0, history_length: 0, last_parent_uuid: null };
+    const isBranch =
+      prev.turn_number > 0 &&
+      (historyLength < prev.history_length || (parentUuid !== null && parentUuid !== prev.last_parent_uuid));
+
+    const turnNumber = prev.turn_number + 1;
+    convState[conversationId] = { turn_number: turnNumber, history_length: historyLength, last_parent_uuid: parentUuid };
+
+    const includeFullHistory = turnNumber === 1 || isBranch;
+
+    console.log(
+      `[ClaudeCapture] conv=${conversationId.slice(0, 8)}… turn=${turnNumber} branch=${isBranch} ` +
+      `history=${historyLength} user="${userContent.slice(0, 60)}…"`
+    );
+
+    // ── Perform the real fetch ────────────────────────────────────────────────
+    let response;
+    try {
+      response = await originalFetch.apply(this, args);
+    } catch (networkErr) {
+      throw networkErr;
+    }
+
+    const contentType = response.headers.get("content-type") ?? "";
 
     if (contentType.includes("text/event-stream") && response.body) {
       const [streamForApp, streamForCapture] = response.body.tee();
-      captureCompletion(streamForCapture, "sse", convId, parentUuid, allMessages, url);
+
+      // Capture async — never block the app stream
+      captureSSEStream(streamForCapture, {
+        conversationId,
+        turnNumber,
+        isBranch,
+        historyLength,
+        userContent,
+        fullHistory: includeFullHistory ? messages : null,
+      });
+
       return new Response(streamForApp, {
         status: response.status,
         statusText: response.statusText,
@@ -67,196 +102,164 @@
       });
     }
 
-    if (contentType.includes("application/json")) {
-      const cloned = response.clone();
-      captureCompletion(cloned, "json", convId, parentUuid, allMessages, url);
-      return response;
-    }
-
     return response;
   };
 
-  function isConversationEndpoint(url) {
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+
+  function isCompletionEndpoint(url) {
     try {
       const parsed = new URL(url, window.location.origin);
       const host = parsed.hostname;
-      if (host !== "claude.ai" && host !== "www.claude.ai") return false;
+      // Strict: only claude.ai or *.claude.ai — never statsig, intercom, etc.
+      if (host !== "claude.ai" && !host.endsWith(".claude.ai")) return false;
       const path = parsed.pathname;
       return (
-        path.includes("/completion") ||
-        path.includes("/retry_completion") ||
-        (path.includes("/chat_conversations") && path.includes("/chat"))
+        /\/chat_conversations\/[\w-]+\/completion$/.test(path) ||
+        /\/chat_conversations\/[\w-]+\/retry_completion$/.test(path)
       );
     } catch (e) {
       return false;
     }
   }
 
-  function extractConversationId(url, body) {
-    // From URL: /chat_conversations/{uuid}/completion
-    const match = url.match(/chat_conversations\/([a-f0-9-]+)/);
-    if (match) return match[1];
-    // From body
-    if (body?.conversation_uuid) return body.conversation_uuid;
-    return "unknown";
+  function extractConversationId(url) {
+    try {
+      const m = url.match(/\/chat_conversations\/([\w-]+)\//);
+      return m ? m[1] : "unknown";
+    } catch (e) {
+      return "unknown";
+    }
   }
 
-  async function captureCompletion(streamOrResponse, type, convId, parentUuid, allMessages, url) {
-    let assistantText = "";
-
-    if (type === "sse") {
-      assistantText = await readSSEStream(streamOrResponse);
-    } else {
-      try {
-        const body = await streamOrResponse.json();
-        const content = body?.content;
-        if (Array.isArray(content)) {
-          assistantText = content.filter((b) => b.type === "text").map((b) => b.text).join(" ");
-        } else if (typeof body?.completion === "string") {
-          assistantText = body.completion;
-        }
-      } catch (e) {}
+  /** Handle both messages-array format and legacy Human:/Assistant: prompt format. */
+  function extractMessages(body) {
+    if (Array.isArray(body?.messages) && body.messages.length > 0) {
+      return body.messages.map(normalizeMessage);
     }
-
-    // Build session state
-    if (!sessions[convId]) {
-      sessions[convId] = { turn_count: 0, history_hashes: [], last_msg_count: 0 };
+    if (typeof body?.prompt === "string" && body.prompt.length > 0) {
+      return parsePromptFormat(body.prompt);
     }
-    const session = sessions[convId];
-
-    // Detect branch: if message count decreased or parent_uuid doesn't match expected
-    const prevCount = session.last_msg_count;
-    const curCount = allMessages.length;
-    const isBranch = curCount > 0 && prevCount > 0 && curCount < prevCount;
-
-    session.turn_count++;
-    session.last_msg_count = curCount + 1; // +1 for the assistant response we're about to add
-
-    // Build history hash for branch detection
-    const historyHash = simpleHash(allMessages.map(m => {
-      const c = m.content;
-      if (typeof c === "string") return c.slice(0, 100);
-      if (Array.isArray(c)) return c.map(p => (p.text || "").slice(0, 50)).join("");
-      return "";
-    }).join("|"));
-
-    const isBranchByHash = session.history_hashes.length > 0 &&
-      !session.history_hashes.includes(historyHash) &&
-      curCount <= prevCount;
-
-    session.history_hashes.push(historyHash);
-
-    const now = new Date().toISOString();
-    const sessionDate = now.slice(0, 10);
-
-    // Extract the new user message (last user msg in the array)
-    let userPrompt = "";
-    for (let i = allMessages.length - 1; i >= 0; i--) {
-      if (allMessages[i].role === "user") {
-        userPrompt = extractText(allMessages[i].content);
-        break;
-      }
-    }
-
-    const entry = {
-      session_date: sessionDate,
-      conversation_id: convId,
-      turn_number: session.turn_count,
-      parent_message_uuid: parentUuid,
-      is_branch: isBranch || isBranchByHash,
-      history_length: curCount,
-      history_hash: historyHash,
-      user_content: userPrompt,
-      assistant_content: assistantText,
-      path: url,
-      created_at: now,
-    };
-
-    // Also capture full message history on first turn or branch (for full session reconstruction)
-    if (session.turn_count === 1 || isBranch || isBranchByHash) {
-      entry.full_history = allMessages.map(m => ({
-        role: m.role,
-        content: extractText(m.content),
-        uuid: m.uuid || m.id || null,
-      }));
-    }
-
-    storeEntry(entry);
-
-    console.log(
-      `[ClaudeCapture] conv=${convId.slice(0, 8)} turn=${session.turn_count}` +
-      ` msgs=${curCount} branch=${isBranch || isBranchByHash}` +
-      ` user=${userPrompt.length}c asst=${assistantText.length}c`
-    );
+    return [];
   }
 
-  function extractText(content) {
+  function normalizeMessage(msg) {
+    const role = msg.role === "human" ? "user" : msg.role;
+    const content = contentToText(msg.content);
+    return { role, content };
+  }
+
+  function contentToText(content) {
     if (typeof content === "string") return content;
     if (Array.isArray(content)) {
       return content
         .filter((p) => p.type === "text")
-        .map((p) => p.text)
-        .join(" ");
+        .map((p) => p.text ?? "")
+        .join("\n");
+    }
+    return String(content ?? "");
+  }
+
+  function parsePromptFormat(prompt) {
+    const messages = [];
+    // Split on double-newline before role markers
+    const parts = prompt.split(/(?=\n\nHuman:|\n\nAssistant:)/);
+    for (const part of parts) {
+      const trimmed = part.replace(/^\n+/, "");
+      if (trimmed.startsWith("Human:")) {
+        messages.push({ role: "user", content: trimmed.slice(6).trim() });
+      } else if (trimmed.startsWith("Assistant:")) {
+        messages.push({ role: "assistant", content: trimmed.slice(10).trim() });
+      }
+    }
+    return messages;
+  }
+
+  function extractLastUserContent(messages) {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === "user") return messages[i].content ?? "";
     }
     return "";
   }
 
-  async function readSSEStream(stream) {
-    const reader = stream.getReader();
-    const decoder = new TextDecoder();
+  // ── SSE capture ─────────────────────────────────────────────────────────────
+
+  async function captureSSEStream(stream, meta) {
     const chunks = [];
     try {
+      const reader = stream.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        const text = decoder.decode(value, { stream: true });
-        for (const line of text.split("\n")) {
-          if (!line.startsWith("data: ")) continue;
-          const data = line.slice(6);
-          if (data === "[DONE]") break;
-          try {
-            const event = JSON.parse(data);
-            if (event.type === "content_block_delta") {
-              const delta = event.delta;
-              if (delta?.type === "text_delta" && delta.text) {
-                chunks.push(delta.text);
-              }
-            } else if (event.type === "completion" && event.completion) {
-              chunks.push(event.completion);
-            }
-          } catch (e) {}
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop(); // keep incomplete line
+        for (const line of lines) {
+          processSSELine(line, chunks);
         }
       }
+      // Flush remaining buffer
+      if (buf) processSSELine(buf, chunks);
     } catch (e) {
-      console.debug("[ClaudeCapture] SSE read error:", e.message);
+      console.warn("[ClaudeCapture] SSE read error:", e.message);
     }
-    return chunks.join("");
+
+    const assistantContent = chunks.join("");
+    const now = new Date().toISOString();
+
+    const entry = {
+      session_date: now.slice(0, 10),
+      conversation_id: meta.conversationId,
+      turn_number: meta.turnNumber,
+      is_branch: meta.isBranch,
+      history_length: meta.historyLength,
+      user_content: meta.userContent,
+      assistant_content: assistantContent,
+      created_at: now,
+    };
+
+    if (meta.fullHistory) {
+      entry.full_history = meta.fullHistory;
+    }
+
+    console.log(
+      `[ClaudeCapture] Captured turn=${meta.turnNumber} ` +
+      `assistant=${assistantContent.length}c branch=${meta.isBranch}`
+    );
+    _debugSet({ last_entry: { ...entry, full_history: entry.full_history ? `[${entry.full_history.length} msgs]` : undefined }, ts: now });
+
+    // Send to ISOLATED world via postMessage (CustomEvent does NOT cross worlds in MV3)
+    window.postMessage({ type: "claude-transcript-v2", entry }, "*");
   }
 
-  function storeEntry(entry) {
+  function processSSELine(line, chunks) {
+    if (!line.startsWith("data: ")) return;
+    const data = line.slice(6).trim();
+    if (data === "[DONE]") return;
     try {
-      const existing = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-      existing.push(entry);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(existing.slice(-MAX_STORED)));
-      window.postMessage({ type: "claude-transcript", entries: [entry] }, "*");
+      const event = JSON.parse(data);
+      // Anthropic streaming format
+      if (event.type === "content_block_delta" && event.delta?.type === "text_delta") {
+        chunks.push(event.delta.text ?? "");
+      } else if (event.type === "completion" && typeof event.completion === "string") {
+        // Legacy format
+        chunks.push(event.completion);
+      } else if (typeof event.delta?.text === "string") {
+        chunks.push(event.delta.text);
+      }
     } catch (e) {
-      console.debug("[ClaudeCapture] store error:", e.message);
+      // Non-JSON data line — skip
     }
   }
 
-  function debugLog(label, data) {
+  // ── Debug helper ─────────────────────────────────────────────────────────────
+
+  function _debugSet(obj) {
     try {
-      const existing = JSON.parse(localStorage.getItem(DEBUG_KEY) || "[]");
-      existing.push({ label, data, ts: new Date().toISOString() });
-      localStorage.setItem(DEBUG_KEY, JSON.stringify(existing.slice(-50)));
+      localStorage.setItem("__claude_capture_debug", JSON.stringify(obj));
     } catch (e) {}
-  }
-
-  function simpleHash(str) {
-    let hash = 5381;
-    for (let i = 0; i < str.length; i++) {
-      hash = ((hash << 5) + hash + str.charCodeAt(i)) & 0x7fffffff;
-    }
-    return hash.toString(36);
   }
 })();

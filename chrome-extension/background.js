@@ -1,52 +1,80 @@
 /**
- * background.js — service worker
- * Receives transcripts from bridge.js, forwards to native host for disk write.
- * Falls back to chrome.storage.local if native messaging unavailable.
+ * background.js — MV3 service worker
+ *
+ * Receives transcript entries from bridge.js, writes to disk via native
+ * messaging host (dev.deltaops.claude_capture). Falls back to
+ * chrome.storage.local if the native host is unavailable, then flushes
+ * on the next successful connection.
  */
+"use strict";
 
 const NATIVE_HOST = "dev.deltaops.claude_capture";
-const STORAGE_KEY = "pending_transcripts";
+const STORAGE_KEY = "pending_transcripts_v2";
+const MAX_PENDING = 2000;
 
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (msg.type !== "transcript" || !Array.isArray(msg.entries)) return;
+// ── Message handler ──────────────────────────────────────────────────────────
 
-  // Try native messaging first (writes JSONL to disk)
-  try {
-    chrome.runtime.sendNativeMessage(NATIVE_HOST, { entries: msg.entries }, (resp) => {
-      if (chrome.runtime.lastError) {
-        // Native host not available — queue in storage
-        queueToStorage(msg.entries);
-      }
-    });
-  } catch (e) {
-    queueToStorage(msg.entries);
-  }
+chrome.runtime.onMessage.addListener((msg, _sender, _sendResponse) => {
+  if (msg?.type !== "transcript-v2" || !msg.entry) return false;
+  handleEntry(msg.entry);
+  return false; // synchronous, no async response needed
 });
+
+async function handleEntry(entry) {
+  try {
+    await sendNative({ entries: [entry] });
+    console.log(
+      `[ClaudeCapture BG] Wrote turn=${entry.turn_number} conv=${String(entry.conversation_id).slice(0, 8)}…`
+    );
+  } catch (e) {
+    console.debug("[ClaudeCapture BG] Native host unavailable, queuing:", e.message);
+    await queueToStorage([entry]);
+  }
+}
+
+// ── Native messaging ─────────────────────────────────────────────────────────
+
+function sendNative(payload) {
+  return new Promise((resolve, reject) => {
+    try {
+      chrome.runtime.sendNativeMessage(NATIVE_HOST, payload, (resp) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+        } else {
+          resolve(resp);
+        }
+      });
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
+
+// ── Storage fallback ─────────────────────────────────────────────────────────
 
 async function queueToStorage(entries) {
   const data = await chrome.storage.local.get(STORAGE_KEY);
-  const existing = data[STORAGE_KEY] || [];
+  const existing = data[STORAGE_KEY] ?? [];
   existing.push(...entries);
-  // Cap at 2000 entries
-  const trimmed = existing.slice(-2000);
-  await chrome.storage.local.set({ [STORAGE_KEY]: trimmed });
+  await chrome.storage.local.set({ [STORAGE_KEY]: existing.slice(-MAX_PENDING) });
 }
 
-// Periodic flush from storage via native messaging (every 5 min)
-chrome.alarms.create("flush-transcripts", { periodInMinutes: 5 });
+// ── Periodic flush of queued entries ─────────────────────────────────────────
+
+chrome.alarms.create("flush-queue", { periodInMinutes: 5 });
+
 chrome.alarms.onAlarm.addListener(async (alarm) => {
-  if (alarm.name !== "flush-transcripts") return;
+  if (alarm.name !== "flush-queue") return;
+
   const data = await chrome.storage.local.get(STORAGE_KEY);
-  const pending = data[STORAGE_KEY] || [];
+  const pending = data[STORAGE_KEY] ?? [];
   if (pending.length === 0) return;
 
   try {
-    chrome.runtime.sendNativeMessage(NATIVE_HOST, { entries: pending }, (resp) => {
-      if (!chrome.runtime.lastError) {
-        chrome.storage.local.set({ [STORAGE_KEY]: [] });
-      }
-    });
+    await sendNative({ entries: pending });
+    await chrome.storage.local.set({ [STORAGE_KEY]: [] });
+    console.log(`[ClaudeCapture BG] Flushed ${pending.length} queued entries`);
   } catch (e) {
-    // native host still unavailable, keep queued
+    // Native host still unavailable — keep entries queued
   }
 });

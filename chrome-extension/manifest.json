@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Claude Transcript Capture",
-  "version": "1.0.0",
-  "description": "Passively captures Claude.ai conversations for vault-mcp transcript search",
+  "version": "2.0.0",
+  "description": "Passively captures Claude.ai conversation transcripts (full session, branch detection)",
   "permissions": [
     "storage",
     "alarms",
