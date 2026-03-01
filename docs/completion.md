@@ -273,3 +273,18 @@
 | Phase 6 | .prompts/phase6-session.md | ✅ Complete |
 | Phase 7 | .prompts/phase7-session.md | ✅ Complete |
 | Phase 8 | .prompts/phase8-session.md | ✅ Complete |
+
+### Executor Validation (2026-03-01)
+All 5 executor paths validated end-to-end:
+- **Claude/Sonnet 4.6**: ✅ claude-sonnet-4-6, 11.1s
+- **Codex/GPT-5.3**: ✅ gpt-5.3-codex, 4.7s  
+- **Gemini 3.1 Pro**: ✅ gemini-3.1-pro-preview, 24.4s
+- **Consensus (Codex+Gemini)**: ✅ 25.2s
+- **Opus 4.6**: ✅ claude-opus-4-6 (via escalation)
+
+VM fixes applied:
+- Added -y (yolo) and --model flags to gemini CLI spawn
+- Added --model flag to codex CLI spawn
+- Fixed consensus passing model=consensus to CLIs (now null)
+- Added .codex/.gemini to systemd ReadWritePaths
+- Updated inferModel defaults to Sonnet 4.6 + Gemini 3.1 Pro
