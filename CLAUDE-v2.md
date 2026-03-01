@@ -25,7 +25,7 @@ Claude.ai (Opus 4.6 orchestrator, 200K context)
 
 ## Continuity Protocol
 
-### /start (type this at beginning of every new session)
+### /bismillah (type this at beginning of every new session)
 1. **Canary**: Call `task(action: "list")` via vault-mcp.
    - ✅ Reachable → normal mode.
    - ❌ Unreachable → degraded mode: use mac-mcp `read_file`/`write_file` on `~/.claude/tasks-fallback.md` and `~/.claude/checkpoints-fallback.md` instead.
