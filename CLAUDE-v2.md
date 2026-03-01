@@ -31,7 +31,7 @@ Claude.ai (Opus 4.6 orchestrator, 200K context)
    - ❌ Unreachable → degraded mode: use mac-mcp `read_file`/`write_file` on `~/.claude/tasks-fallback.md` and `~/.claude/checkpoints-fallback.md` instead.
 2. **Recover**: Call `checkpoint(action: "load")` via vault-mcp. Display the recovery document (objective, open tasks, recent decisions, blockers).
 3. **Verify Mac**: Call mac-mcp `run_command: echo ok`.
-4. **Orient**: Summarize current state from checkpoint + SESSION-STATUS project file. Ask user what to work on.
+4. **Orient**: Summarize current state from checkpoint. Ask user what to work on.
 
 ### /done (type this before ending a session)
 1. **Save checkpoint**: Call `checkpoint(action: "save")` via vault-mcp with:
@@ -39,8 +39,8 @@ Claude.ai (Opus 4.6 orchestrator, 200K context)
    - `recent_actions`: list of what was completed this session
    - `blockers`: anything currently stuck
 2. **Update completion.md**: Call mac-mcp `read_file` then `write_file` to append this session's completed items to `~/Developer/infrastructure/docs/completion.md`.
-3. **Generate SESSION-STATUS**: Call mac-mcp `write_file` to write `~/Developer/infrastructure/SESSION-STATUS.md` with: infrastructure state, completed items, open tasks, key decisions, recent git log, next steps.
-4. **Tell user**: "Checkpoint saved. SESSION-STATUS.md written — replace the project file for next session."
+3. **Commit**: Call mac-mcp `run_command` to `git add docs/completion.md && git commit -m "docs: session checkpoint" && git push`.
+4. **Confirm**: "Checkpoint saved to D1. completion.md updated and pushed."
 
 ### After architectural decisions
 Call `checkpoint(action: "decide")` with the decision and rationale.
