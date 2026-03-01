@@ -183,7 +183,7 @@
 - Anthropic OAuth tokens banned for third-party API use as of Feb 20 2026 — Max subscription can't be used from Workers
 - Classification is best-effort (waitUntil, failures logged and swallowed)
 - Gateway scope: classification calls only. Executor CLI calls (claude/codex/gemini) go direct to providers via OAuth/API keys — by design, CLIs need local auth and complete environments.
-- Gateway value is foundational plumbing; analytics become meaningful if/when direct API calls are added (Gate G1)
+- Gateway value is foundational plumbing today. Once Mermaid compression protocol validates ~100x on JSON summaries → executor switches from CLI OAuth to direct API calls → all provider traffic routes through gateway → full cost analytics, caching, and rate limiting become operational. Gate G1 trigger: Mermaid validation complete.
 - Gateway: skipCache=false + cacheTtl=3600 (cache identical classifications), metadata includes task_id
 
 ### Files Created/Modified
