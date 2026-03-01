@@ -53,7 +53,8 @@ export async function classifyTask(
       {
         gateway: {
           id: AI_GATEWAY_ID,
-          skipCache: true,
+          skipCache: false,
+          cacheTtl: 3600,
           metadata: { task_id: taskId },
         },
       },
