@@ -27,3 +27,6 @@ renamed_classes = [{ from = "McpAgent", to = "VaultMcpAgent" }]
 tag = "v3"
 deleted_classes = ["VaultMcpAgent"]
 
+
+[ai]
+binding = "AI"
