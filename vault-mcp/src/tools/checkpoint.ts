@@ -19,6 +19,7 @@ export async function createCheckpoint(db: D1Database, params: {
   objective?: string;
   blockers?: string[];
   recent_actions?: string[];
+  weight?: number;
 }) {
   // Build recovery document from current state
   const [openTasks, decisions] = await Promise.all([
@@ -38,7 +39,7 @@ export async function createCheckpoint(db: D1Database, params: {
   const ts = now();
   await db.prepare(
     "INSERT INTO checkpoints (id, content, trigger_signals, cumulative_weight, created_at) VALUES (?, ?, ?, ?, ?)",
-  ).bind(id, doc, JSON.stringify(params), 1, ts).run();
+  ).bind(id, doc, JSON.stringify(params), params.weight ?? 1, ts).run();
 
   return { id, created_at: ts, content_length: doc.length };
 }

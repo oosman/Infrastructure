@@ -1,4 +1,5 @@
 import { ulid, now } from "../utils";
+import { maybeAutoCheckpoint } from "./checkpoint-trigger";
 
 /** djb2 string hash — fast, non-crypto */
 function hashParams(params: Record<string, unknown>): string {
@@ -23,6 +24,9 @@ export function logToolCall(
     )
     .bind(ulid(), toolName, action ?? null, params ? hashParams(params) : null, now())
     .run()
-    .then(() => {})
+    .then(() => {
+      // Fire-and-forget: evaluate auto-checkpoint after every tool call
+      maybeAutoCheckpoint(db).catch(() => {});
+    })
     .catch(() => {});
 }
