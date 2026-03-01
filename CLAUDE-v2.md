@@ -54,7 +54,8 @@ Eviction: if task list exceeds 2K tokens, show only current project tasks + last
    - `blockers`: anything currently stuck
 2. **Update completion.md**: Call mac-mcp `read_file` then `write_file` to append this session's completed items to `~/Developer/infrastructure/docs/completion.md`.
 3. **Commit**: Call mac-mcp `run_command` to `git add docs/completion.md && git commit -m "docs: session checkpoint" && git push`.
-4. **Confirm**: "Checkpoint saved to D1. completion.md updated and pushed."
+4. **Capture transcript**: Call `recent_chats(n=1)` to get this conversation's UUID from the URL. Then call `checkpoint(action: "ingest", conversation_uuid: "<uuid>")`. This pushes the full transcript to D1 + GitHub KB.
+5. **Confirm**: "Checkpoint saved. Transcript captured. completion.md updated and pushed."
 
 ### After architectural decisions
 Call `checkpoint(action: "decide")` with the decision and rationale.
