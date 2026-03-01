@@ -182,6 +182,8 @@
 - Workers AI (Llama 3.1 8B) over Anthropic Haiku — free tier, no API key, sufficient for 5-field JSON classification
 - Anthropic OAuth tokens banned for third-party API use as of Feb 20 2026 — Max subscription can't be used from Workers
 - Classification is best-effort (waitUntil, failures logged and swallowed)
+- Gateway scope: classification calls only. Executor CLI calls (claude/codex/gemini) go direct to providers via OAuth/API keys — by design, CLIs need local auth and complete environments.
+- Gateway value is foundational plumbing; analytics become meaningful if/when direct API calls are added (Gate G1)
 - Gateway: skipCache=false + cacheTtl=3600 (cache identical classifications), metadata includes task_id
 
 ### Files Created/Modified
