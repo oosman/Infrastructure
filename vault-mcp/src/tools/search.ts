@@ -14,11 +14,11 @@ async function searchTranscripts(db: D1Database, params: {
   let stmt;
   if (params.session) {
     stmt = db.prepare(
-      "SELECT id, session_date, role, content, created_at FROM transcripts WHERE content LIKE ? AND session_date = ? ORDER BY created_at DESC LIMIT ?",
+      "SELECT id, session_date, role, content, created_at, title FROM transcripts WHERE content LIKE ? AND session_date = ? ORDER BY created_at DESC LIMIT ?",
     ).bind(likeQuery, params.session, limit);
   } else {
     stmt = db.prepare(
-      "SELECT id, session_date, role, content, created_at FROM transcripts WHERE content LIKE ? ORDER BY created_at DESC LIMIT ?",
+      "SELECT id, session_date, role, content, created_at, title FROM transcripts WHERE content LIKE ? ORDER BY created_at DESC LIMIT ?",
     ).bind(likeQuery, limit);
   }
 

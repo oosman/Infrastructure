@@ -174,6 +174,9 @@ export default {
     if (pathname === "/search" && request.method === "GET") {
       return handleTranscriptSearch(restRequest, env);
     }
+    if (pathname === "/transcripts" && request.method === "GET") {
+      return handleTranscriptSearch(request, env);
+    }
     if (pathname === "/transcripts" && request.method === "POST") {
       return handleTranscriptIngest(request, env);
     }

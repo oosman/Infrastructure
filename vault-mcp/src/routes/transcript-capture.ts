@@ -118,10 +118,10 @@ export async function captureTranscript(
     try {
       await env.VAULT_DB.prepare(
         `INSERT OR IGNORE INTO transcripts
-         (id, session_date, role, content, conversation_id, turn_number, is_branch, parent_message_uuid, history_hash, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, session_date, role, content, conversation_id, turn_number, is_branch, parent_message_uuid, history_hash, created_at, title)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-        .bind(ulid(), sessionDate, role, truncated, resolvedUuid, turn, 0, null, null, ts)
+        .bind(ulid(), sessionDate, role, truncated, resolvedUuid, turn, 0, null, null, ts, data.name || null)
         .run();
       inserted++;
     } catch {
