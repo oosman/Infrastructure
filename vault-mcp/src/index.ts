@@ -174,10 +174,10 @@ export default {
       return handleTranscriptIngest(request, env);
     }
     if (pathname === "/transcripts/capture" && request.method === "POST") {
-      const body = await request.json() as { conversation_uuid: string };
-      if (!body.conversation_uuid) return errorResponse("Required: conversation_uuid");
+      const body = await request.json() as { conversation_uuid?: string; title?: string };
+      if (!body.conversation_uuid && !body.title) return errorResponse("Required: conversation_uuid or title");
       try {
-        const result = await captureTranscript(env, body.conversation_uuid);
+        const result = await captureTranscript(env, { conversationUuid: body.conversation_uuid, title: body.title });
         return json(result);
       } catch (err) {
         return errorResponse(`Capture failed: ${err instanceof Error ? err.message : String(err)}`, 500);

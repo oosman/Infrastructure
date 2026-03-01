@@ -132,6 +132,7 @@ export function registerCheckpointTool(server: McpServer, env: Env) {
       rationale: z.string().optional().describe("Decision rationale (decide)"),
       task_id: z.string().optional().describe("Related task ID (decide)"),
       conversation_uuid: z.string().optional().describe("Claude.ai conversation UUID (ingest)"),
+      title: z.string().optional().describe("Conversation title for fuzzy match (ingest, alternative to UUID)"),
     },
     async (params) => {
       try {
@@ -145,10 +146,13 @@ export function registerCheckpointTool(server: McpServer, env: Env) {
               recent_actions: params.recent_actions,
             }));
 case "ingest": {
-            if (!params.conversation_uuid) {
-              return mcpError("ingest requires: conversation_uuid");
+            if (!params.conversation_uuid && !params.title) {
+              return mcpError("ingest requires: conversation_uuid or title");
             }
-            const captureResult = await captureTranscript(env, params.conversation_uuid);
+            const captureResult = await captureTranscript(env, {
+              conversationUuid: params.conversation_uuid,
+              title: params.title,
+            });
             return mcpText(captureResult);
           }
           case "decide": {

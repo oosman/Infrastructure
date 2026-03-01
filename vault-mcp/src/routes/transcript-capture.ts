@@ -26,11 +26,6 @@ function slugify(text: string): string {
     .replace(/-$/, "");
 }
 
-/**
- * Parse turns from transcript markdown.
- * Headers are: ### Human (Turn N) or ### Assistant (Turn N)
- * Also handles ## Human (Turn N) for linear transcripts.
- */
 function parseTurns(md: string): Array<{ role: string; turn: number; content: string }> {
   const headerRe = /^#{2,4} (Human|Assistant) \(Turn (\d+)\)$/gm;
   const positions: Array<{ role: string; turn: number; headerEnd: number }> = [];
@@ -47,49 +42,57 @@ function parseTurns(md: string): Array<{ role: string; turn: number; content: st
   const turns: Array<{ role: string; turn: number; content: string }> = [];
   for (let i = 0; i < positions.length; i++) {
     const start = positions[i].headerEnd;
-    // Content runs until the line before the next header (any # heading or ---) or EOF
     let end = md.length;
     if (i + 1 < positions.length) {
-      // Find the start of the next header's line
-      const nextPos = positions[i + 1].headerEnd;
-      const lineStart = md.lastIndexOf("\n", nextPos - (nextPos - md.lastIndexOf("#", nextPos)));
-      // Simpler: search backwards from next header for the newline
       const searchFrom = md.lastIndexOf("#", positions[i + 1].headerEnd);
       end = md.lastIndexOf("\n", searchFrom);
       if (end <= start) end = searchFrom;
     }
-
     const content = md.substring(start, end).trim();
     if (content) {
       turns.push({ role: positions[i].role, turn: positions[i].turn, content });
     }
   }
-
   return turns;
 }
 
+/**
+ * Capture a transcript by UUID or title.
+ * Title-based: VPS service lists recent conversations, fuzzy-matches, then extracts.
+ */
 export async function captureTranscript(
   env: Env,
-  conversationUuid: string,
+  options: { conversationUuid?: string; title?: string },
 ): Promise<{
   ok: boolean;
   turns_ingested: number;
   github_path?: string;
   total_messages?: number;
   branch_points?: number;
+  resolved_uuid?: string;
   error?: string;
 }> {
-  // 1. Call transcript service
+  const { conversationUuid, title } = options;
+
+  if (!conversationUuid && !title) {
+    throw new Error("Provide conversation_uuid or title");
+  }
+
+  // 1. Build request body — either UUID or title
+  const reqBody: Record<string, unknown> = { timeout: 90 };
+  if (conversationUuid) {
+    reqBody.conversation_url = `https://claude.ai/chat/${conversationUuid}`;
+  } else {
+    reqBody.title = title;
+  }
+
   const resp = await fetch(`${env.TRANSCRIPT_URL}/transcript`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "X-Auth-Token": env.TRANSCRIPT_SECRET,
     },
-    body: JSON.stringify({
-      conversation_url: `https://claude.ai/chat/${conversationUuid}`,
-      timeout: 90,
-    }),
+    body: JSON.stringify(reqBody),
   });
 
   if (!resp.ok) {
@@ -102,6 +105,8 @@ export async function captureTranscript(
     throw new Error(data.markdown || "extraction failed");
   }
 
+  const resolvedUuid = data.uuid;
+
   // 2. Ingest per-turn entries to D1
   const sessionDate = data.created_at.substring(0, 10);
   const ts = now();
@@ -109,7 +114,6 @@ export async function captureTranscript(
 
   const turns = parseTurns(data.markdown);
   for (const { role, turn, content } of turns) {
-    // Truncate to 50KB per turn for D1 row size
     const truncated = content.length > 50000 ? content.substring(0, 50000) + "\n[truncated]" : content;
     try {
       await env.VAULT_DB.prepare(
@@ -117,7 +121,7 @@ export async function captureTranscript(
          (id, session_date, role, content, conversation_id, turn_number, is_branch, parent_message_uuid, history_hash, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-        .bind(ulid(), sessionDate, role, truncated, conversationUuid, turn, 0, null, null, ts)
+        .bind(ulid(), sessionDate, role, truncated, resolvedUuid, turn, 0, null, null, ts)
         .run();
       inserted++;
     } catch {
@@ -182,5 +186,6 @@ export async function captureTranscript(
     github_path: githubOk ? githubPath : undefined,
     total_messages: data.total_messages,
     branch_points: data.branch_points,
+    resolved_uuid: resolvedUuid,
   };
 }
