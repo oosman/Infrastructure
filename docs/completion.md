@@ -172,11 +172,15 @@
 | 7.7 Gateway caching enabled | ✅ | skipCache=false + cacheTtl=3600 (was skipCache=true) | 2026-03-01 |
 | 7.8 AI Gateway API token | ✅ | CF_AIG_TOKEN in Keychain + wrangler secret, Read+Write+Run perms | 2026-03-01 |
 | 7.9 Log retention clarified | ✅ | Count-based (10M max), not time-based. No config needed. | 2026-03-01 |
+| 7.10 Model ladder upgrade | ✅ | Sonnet 4.6 (claude-sonnet-4-6), Gemini 3.1 Pro (gemini-3.1-pro-preview), pricing updated | 2026-03-01 |
+| 7.11 Default repo fallback | ✅ | oosman/infrastructure when repo omitted (was causing all executor calls to fail) | 2026-03-01 |
+| 7.12 Sonnet 4.6 validated | ✅ | End-to-end execute → D1 with claude-sonnet-4-6, first attempt success | 2026-03-01 |
 
 ### Key Commits
 - aa65507: Initial AI Gateway + classification (ANTHROPIC_API_KEY path)
 - 4a007e9: Switch to Workers AI Llama 3.1 8B (free, no API key)
 - ef0cfcc: Enable gateway caching (skipCache=false, cacheTtl=3600)
+- f642766: Upgrade model ladder — Sonnet 4.6 + Gemini 3.1 Pro + default repo fallback
 - 453308b: Upgrade model ladder — Sonnet 4.6, Gemini 3.1 Pro, updated pricing
 
 ### Key Decisions
@@ -186,6 +190,8 @@
 - Gateway scope: classification calls only. Executor CLI calls (claude/codex/gemini) go direct to providers via OAuth/API keys — by design, CLIs need local auth and complete environments.
 - Gateway value is foundational plumbing today. Once Mermaid compression protocol validates ~100x on JSON summaries → executor switches from CLI OAuth to direct API calls → all provider traffic routes through gateway → full cost analytics, caching, and rate limiting become operational. Gate G1 trigger: Mermaid validation complete.
 - Gateway: skipCache=false + cacheTtl=3600 (cache identical classifications), metadata includes task_id
+- Model ladder upgraded: Sonnet 4.5→4.6, Gemini 2.5 Pro→3.1 Pro ($2/$12), default repo fallback added
+- Executor diagnosis: Codex blocked by ProtectSystem=strict (Phase 5 fix), Gemini CLI hangs (Phase 5 fix)
 - Model ladder upgraded: Sonnet 4.5→4.6 (claude-sonnet-4-6), Gemini 2.5 Pro→3.1 Pro (gemini-3.1-pro-preview), pricing updated
 
 ### Files Created/Modified
