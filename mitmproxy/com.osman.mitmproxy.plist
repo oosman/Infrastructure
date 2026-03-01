@@ -13,8 +13,9 @@
     <string>claude_capture.py</string>
     <string>--listen-port</string>
     <string>8080</string>
-    <string>--set</string>
-    <string>allow_hosts=["api\\.claude\\.ai$"]</string>
+    <string>--mode</string>
+    <string>regular</string>
+    <string>-q</string>
   </array>
 
   <key>WorkingDirectory</key>
